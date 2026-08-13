@@ -1,0 +1,7 @@
+name = "bob"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"
+
+# 构建依赖 Node 22（与本地一致）
+[node]
+version = "22"
