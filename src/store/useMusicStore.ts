@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { Song, PlayMode, Playlist } from '@/types'
 import { storage, STORAGE_KEYS } from '@/utils/storage'
 import { ALL_SONGS, PLAYLISTS } from '@/data/playlists'
+import { fetchLyric } from '@/utils/lyric'
 
 /**
  * 音乐全局状态 Store
@@ -50,7 +51,20 @@ interface MusicState {
 /** 模式循环顺序 */
 const MODE_ORDER: PlayMode[] = ['list', 'single', 'random']
 
-export const useMusicStore = create<MusicState>((set, get) => ({
+export const useMusicStore = create<MusicState>((set, get) => {
+  /** 若歌曲未内嵌歌词且有 lrcUrl，异步拉取补全（仅当仍是当前歌曲时写入） */
+  async function ensureLyric(song: Song): Promise<void> {
+    if ((song.lyric?.length ?? 0) > 0 || !song.lrcUrl) return
+    const lyric = await fetchLyric(song.lrcUrl)
+    if (lyric.length === 0) return
+    if (get().currentSong?.id === song.id) {
+      set((s) => ({
+        currentSong: s.currentSong ? { ...s.currentSong, lyric } : s.currentSong,
+      }))
+    }
+  }
+
+  return {
   // 初始值从 localStorage 恢复，实现持久化
   currentSong: null,
   isPlaying: false,
@@ -68,6 +82,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     if (playlistId !== undefined) set({ currentPlaylistId: playlistId })
     // 写入播放历史
     get().addToHistory(song.id)
+    void ensureLyric(song)
   },
 
   // 仅预设歌曲信息，不改变播放状态（进入站点时调用，避免浏览器自动播放策略拦截）
@@ -75,6 +90,7 @@ export const useMusicStore = create<MusicState>((set, get) => ({
     set({ currentSong: song })
     if (playlistId !== undefined) set({ currentPlaylistId: playlistId })
     get().addToHistory(song.id)
+    void ensureLyric(song)
   },
 
   setIsPlaying: (playing) => set({ isPlaying: playing }),
@@ -111,7 +127,8 @@ export const useMusicStore = create<MusicState>((set, get) => ({
 
   setFullPanelOpen: (open) => set({ isFullPanelOpen: open }),
   setPlaylists: (playlists) => set({ playlists }),
-}))
+  }
+})
 
 /**
  * 根据 playMode 计算下一首歌
