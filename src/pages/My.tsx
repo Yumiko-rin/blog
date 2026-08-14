@@ -55,10 +55,10 @@ const FALLBACK_SEASONAL: AnimeItem[] = [
   { mal_id: 59978, title: '葬送的芙莉莲 第二季', title_japanese: '葬送のフリーレン 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg' } }, score: 9.0, episodes: 24, type: 'TV', airing: true, genres: [{ name: 'Adventure' }, { name: 'Fantasy' }] },
   { mal_id: 57906, title: 'Dan Da Dan', title_japanese: 'ダンダダン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg' } }, score: 8.6, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Comedy' }, { name: 'Supernatural' }] },
   { mal_id: 52204, title: '我独自升级', title_japanese: '俺だけレベルアップな件', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg' } }, score: 8.3, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
-  { mal_id: 54102, title: '怪兽8号', title_japanese: '怪獣8号', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1456/141904.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1456/141904.jpg' } }, score: 8.0, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Sci-Fi' }] },
+  { mal_id: 52588, title: '怪兽8号', title_japanese: '怪獣8号', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1370/140362l.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1370/140362.jpg' } }, score: 8.2, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Sci-Fi' }] },
   { mal_id: 53223, title: '青之箱', title_japanese: 'アオのハコ', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg' } }, score: 8.2, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Romance' }, { name: 'Sports' }] },
   { mal_id: 52743, title: 'Delicious in Dungeon', title_japanese: 'ダンジョン飯', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg' } }, score: 8.4, episodes: 24, type: 'TV', airing: false, genres: [{ name: 'Adventure' }, { name: 'Comedy' }] },
-  { mal_id: 55701, title: '神之塔 第二季', title_japanese: '神之塔 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1384/137024.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1384/137024.jpg' } }, score: 8.0, episodes: 26, type: 'TV', airing: true, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
+  { mal_id: 55701, title: '神之塔 第二季', title_japanese: '神之塔 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1565/142711l.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1565/142711.jpg' } }, score: 8.0, episodes: 26, type: 'TV', airing: true, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
 ]
 
 export default function My() {
@@ -71,6 +71,7 @@ export default function My() {
   const [loadingAnime, setLoadingAnime] = useState(true)
   const [animeFilter, setAnimeFilter] = useState<'all' | 'tv' | 'movie' | 'ova'>('all')
   const [failedCovers, setFailedCovers] = useState<Set<number>>(new Set())
+  const [retryCovers, setRetryCovers] = useState<Set<number>>(new Set())
   // 文章与友链计数：静态数据作为初始值，异步加载合并后台发布的数据
   const [articles, setArticles] = useState(ARTICLES)
   const [friends, setFriends] = useState(FRIENDS)
@@ -442,11 +443,19 @@ export default function My() {
                           </div>
                         ) : (
                           <img
-                            src={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url}
+                            src={retryCovers.has(anime.mal_id)
+                              ? anime.images?.jpg?.image_url
+                              : (anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url)}
                             alt={anime.title}
                             className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
-                            onError={() => setFailedCovers(prev => new Set(prev).add(anime.mal_id))}
+                            onError={() => {
+                              if (retryCovers.has(anime.mal_id)) {
+                                setFailedCovers(prev => new Set(prev).add(anime.mal_id))
+                              } else {
+                                setRetryCovers(prev => new Set(prev).add(anime.mal_id))
+                              }
+                            }}
                           />
                         )}
                         {anime.airing && (
