@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, ThumbsUp, Reply, Trash2, Smile,
   ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, LogOut,
+  Mail, Lock,
 } from 'lucide-react'
 import {
   listComments, createComment, likeComment, deleteComment,
@@ -485,52 +486,30 @@ export function CommentSection({ path }: { path: string }) {
         </div>
       </div>
 
-      {/* 身份栏：未登录提供登录/注册入口；已登录显示用户信息 */}
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))]/50 px-3.5 py-2.5">
-        {session ? (
-          <>
-            <img
-              src={avatarFor(`${session.nick}|${session.mail}`)}
-              alt={session.nick}
-              className="h-7 w-7 rounded-full object-cover ring-2 ring-accent/25"
-            />
-            <span className="text-sm font-bold text-[rgb(var(--text-primary))]">{session.nick}</span>
-            {isAdminUser() && (
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
-                <ShieldCheck size={10} /> 博主
-              </span>
-            )}
-            <span className="text-[11px] text-[rgb(var(--text-secondary))] opacity-75">{session.mail}</span>
-            <button
-              type="button"
-              onClick={() => { clearSession(); setSession(null) }}
-              className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[rgb(var(--text-secondary))] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-            >
-              <LogOut size={12} /> 退出
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="text-xs text-[rgb(var(--text-secondary))]">登录后评论可显示身份并管理你的发言</span>
-            <div className="ml-auto flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => { setAuthError(''); setAuthMode('login') }}
-                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[rgb(var(--text-primary))] border border-[var(--border-color)] hover:border-accent hover:text-accent transition-colors"
-              >
-                <LogIn size={12} /> 登录
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthError(''); setAuthMode('register') }}
-                className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium bg-accent text-white hover:opacity-90 transition-colors"
-              >
-                <UserPlus size={12} /> 注册
-              </button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* 身份栏：已登录显示用户信息 */}
+      {session && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))]/50 px-3.5 py-2.5">
+          <img
+            src={avatarFor(`${session.nick}|${session.mail}`)}
+            alt={session.nick}
+            className="h-7 w-7 rounded-full object-cover ring-2 ring-accent/25"
+          />
+          <span className="text-sm font-bold text-[rgb(var(--text-primary))]">{session.nick}</span>
+          {isAdminUser() && (
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+              <ShieldCheck size={10} /> 博主
+            </span>
+          )}
+          <span className="text-[11px] text-[rgb(var(--text-secondary))] opacity-75">{session.mail}</span>
+          <button
+            type="button"
+            onClick={() => { clearSession(); setSession(null) }}
+            className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[rgb(var(--text-secondary))] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+          >
+            <LogOut size={12} /> 退出
+          </button>
+        </div>
+      )}
 
       {/* 发表框 */}
       <div className="mb-6 rounded-2xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))]/60 p-3.5 sm:p-4">
@@ -611,110 +590,6 @@ export function CommentSection({ path }: { path: string }) {
         </span>
         {notice && <span className="text-accent">{notice}</span>}
       </div>
-
-      {/* 站内登录/注册弹窗（Waline 邮箱验证码，完成后立即返回博客） */}
-      {authMode && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setAuthMode(null)}
-          />
-          <div className="relative w-full max-w-sm rounded-2xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-bold text-[rgb(var(--text-primary))]">
-                {authMode === 'login' ? '登录' : '注册'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setAuthMode(null)}
-                className="rounded-lg p-1 text-[rgb(var(--text-secondary))] hover:bg-white/10 hover:text-[rgb(var(--text-primary))] transition-colors"
-                aria-label="关闭"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {/* 邮箱 */}
-              <div className="relative">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
-                <input
-                  value={authMail}
-                  onChange={(e) => setAuthMail(e.target.value)}
-                  placeholder="邮箱"
-                  type="email"
-                  autoComplete="email"
-                  className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
-                />
-              </div>
-
-              {/* 昵称（仅注册） */}
-              {authMode === 'register' && (
-                <div className="relative">
-                  <UserPlus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
-                  <input
-                    value={authNick}
-                    onChange={(e) => setAuthNick(e.target.value)}
-                    placeholder="昵称（注册用）"
-                    autoComplete="nickname"
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
-                  />
-                </div>
-              )}
-
-              {/* 验证码 + 发送 */}
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
-                  <input
-                    value={authCode}
-                    onChange={(e) => setAuthCode(e.target.value)}
-                    placeholder="邮箱验证码"
-                    autoComplete="one-time-code"
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSendCode}
-                  disabled={authBusy || codeCountdown > 0}
-                  className="shrink-0 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-medium text-[rgb(var(--text-primary))] disabled:opacity-40 hover:border-accent hover:text-accent transition-colors"
-                >
-                  {codeCountdown > 0 ? `${codeCountdown}s 后重发` : authBusy ? '发送中…' : '发送验证码'}
-                </button>
-              </div>
-
-              {/* 错误提示 */}
-              {authError && (
-                <p className="text-xs text-red-400">{authError}</p>
-              )}
-
-              {/* 提交 */}
-              <button
-                type="button"
-                onClick={handleAuthSubmit}
-                disabled={authBusy}
-                className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all"
-              >
-                {authBusy ? '请稍候…' : authMode === 'login' ? '登录' : '注册并登录'}
-              </button>
-
-              {/* 切换 */}
-              <button
-                type="button"
-                onClick={switchAuthMode}
-                className="w-full text-center text-xs text-[rgb(var(--text-secondary))] hover:text-accent transition-colors"
-              >
-                {authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录'}
-              </button>
-
-              <p className="text-center text-[11px] text-[rgb(var(--text-secondary))]/60">
-                验证码将发送至你的邮箱（Waline 服务）
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

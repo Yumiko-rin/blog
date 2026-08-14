@@ -31,9 +31,11 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 分钟
 let cachedPlaylists: Playlist[] | null = null
 let cacheTime = 0
 
-/** Meting 返回的绝对地址 → 同源相对路径（避免 https 页面 mixed-content） */
+/** Meting 返回的绝对地址 → 同源 local-api 代理路径（避免 302 跨域重定向导致音频加载失败） */
 function toSameOrigin(u: string): string {
-  return String(u || '').replace(/^https?:\/\/47\.104\.189\.4\/music/, '/music')
+  return String(u || '')
+    .replace(/^https?:\/\/47\.104\.189\.4\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
+    .replace(/^\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
 }
 
 /** 从 Meting 播放地址中提取网易云歌曲 ID */

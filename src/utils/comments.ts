@@ -102,7 +102,7 @@ export function quickLogin(nick: string, mail: string): { ok: boolean; error?: s
 }
 
 /** 博主邮箱（与服务端 ADMIN_MAIL 保持一致） */
-export const ADMIN_MAIL = 'hiromu@example.com'
+export const ADMIN_MAIL = 'jaychou8421@gmail.com'
 
 /** 当前用户是否为博主身份 */
 export function isAdminUser(): boolean {

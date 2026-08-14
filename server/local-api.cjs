@@ -16,6 +16,8 @@
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const http = require('http')
+const https = require('https')
 
 const PREFIX = '/local-api'
 const DATA_DIR = path.resolve(__dirname, '..', 'server-data')
@@ -26,7 +28,7 @@ const FRIENDS_APPROVED_FILE = path.join(DATA_DIR, 'friends-approved.json')
 
 const ADMIN_TOKEN = process.env.BLOG_ADMIN_TOKEN || 'kirameku-admin'
 // 博主邮箱：使用该邮箱登录评论的用户视为博主（可删任意评论、显示博主徽章）
-const ADMIN_MAIL = process.env.BLOG_ADMIN_MAIL || 'hiromu@example.com'
+const ADMIN_MAIL = process.env.BLOG_ADMIN_MAIL || 'jaychou8421@gmail.com'
 const AVATAR_TOTAL = 24          // public/avatars/dmoe_01..24.jpg
 const MAX_VISITORS = 20000       // 访客指纹上限，防止文件无限增长
 const KEEP_DAYS = 120            // 按天统计保留天数
@@ -514,6 +516,59 @@ function removeFriendApplication(body, req) {
   return { ok: true }
 }
 
+/* ============================ 音乐流式代理 ============================ */
+/**
+ * 服务端代理 Meting-API：跟随 302 重定向，将最终音频/图片/歌词字节流回传给浏览器。
+ * 解决 <audio> 元素跟随跨域 302 重定向时 ERR_ABORTED 的问题。
+ */
+const METING_BASE = 'http://47.104.189.4/music/'
+// 缓存已解析的 CDN URL（避免每次 Range 请求都走 Meting API 重定向）
+const musicUrlCache = new Map()
+const MUSIC_URL_TTL = 30 * 60 * 1000 // 30 分钟
+
+function proxyMusic(req, res, url, depth) {
+  if (depth > 5) { if (!res.headersSent) send(res, 502, { error: 'too many redirects' }); return }
+  const mod = url.startsWith('https') ? https : http
+  const opts = {}
+  if (req.headers.range) opts.headers = { Range: req.headers.range }
+
+  let upstream
+  const cleanup = () => { if (upstream) upstream.destroy() }
+  res.on('close', cleanup)
+
+  upstream = mod.get(url, opts, (upRes) => {
+    // 跟随重定向
+    if (upRes.statusCode >= 300 && upRes.statusCode < 400 && upRes.headers.location) {
+      upRes.resume()
+      // 缓存 Meting API → CDN 的重定向结果
+      if (url.startsWith(METING_BASE)) {
+        musicUrlCache.set(url, { url: upRes.headers.location, ts: Date.now() })
+      }
+      proxyMusic(req, res, upRes.headers.location, (depth || 0) + 1)
+      return
+    }
+    // 回传响应头
+    res.statusCode = upRes.statusCode || 200
+    for (const h of ['content-type', 'content-length', 'accept-ranges', 'content-range', 'cache-control']) {
+      if (upRes.headers[h]) res.setHeader(h, upRes.headers[h])
+    }
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    upRes.pipe(res)
+    upRes.on('error', () => { if (!res.writableEnded) res.end() })
+  })
+  upstream.on('error', () => {
+    res.removeListener('close', cleanup)
+    if (!res.headersSent) send(res, 502, { error: 'music proxy failed' })
+    else if (!res.writableEnded) res.end()
+  })
+  upstream.setTimeout(15000, () => {
+    upstream.destroy()
+    res.removeListener('close', cleanup)
+    if (!res.headersSent) send(res, 504, { error: 'music proxy timeout' })
+    else if (!res.writableEnded) res.end()
+  })
+}
+
 /* ============================ 路由分发 ============================ */
 
 /**
@@ -590,6 +645,22 @@ function handleLocalApi(req, res) {
     if (route === '/friend-applications/delete' && req.method === 'POST') {
       const r = removeFriendApplication(await readBody(req), req)
       return send(res, r.error ? 400 : 200, r)
+    }
+
+    /* ---- 音乐流式代理 ---- */
+    if (route === '/music-stream' && req.method === 'GET') {
+      const type = q.get('type') || 'url'
+      const id = q.get('id')
+      if (!id) return send(res, 400, { error: 'missing id' })
+      const metingUrl = `${METING_BASE}?server=netease&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`
+      // 优先使用缓存的 CDN URL（跳过 Meting API 重定向，加速 Range 请求）
+      const cached = musicUrlCache.get(metingUrl)
+      if (cached && Date.now() - cached.ts < MUSIC_URL_TTL) {
+        proxyMusic(req, res, cached.url, 0)
+      } else {
+        proxyMusic(req, res, metingUrl, 0)
+      }
+      return true
     }
 
     return send(res, 404, { error: 'not found', route })

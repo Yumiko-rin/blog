@@ -114,6 +114,10 @@ const ALBUMS: Album[] = [
 ]
 
 // ========== 照片卡片（拍立得风格，与原站一致）==========
+
+// 生成低质量占位图 URL（七牛云 imageView2 格式：20px 宽 / 质量 10）
+const getLqip = (url: string) => `${url}?imageView2/2/w/20/q/10`
+
 function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
 
@@ -137,16 +141,30 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
       {/* 照片外框（拍立得白边） */}
       <div className="relative bg-white dark:bg-slate-800 p-2 pb-6 md:p-2.5 md:pb-8 rounded-sm shadow-lg dark:shadow-black/30 group-hover:shadow-2xl transition-shadow duration-300">
         <div className={`relative overflow-hidden rounded-[1px] ${isLandscape ? 'aspect-[4/3]' : 'aspect-[4/5]'}`}>
+          {/* LQIP 模糊占位图：先加载极小图，模糊放大作为背景 */}
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-slate-200 dark:bg-slate-700"
+            style={{
+              backgroundImage: `url(${getLqip(photo.url)})`,
+              filter: 'blur(20px)',
+              transform: 'scale(1.1)',
+            }}
+          />
+          {/* 高清图：加载完成后从 opacity-0 / blur(10px) 淡入到 opacity-100 / blur(0) */}
           <img
             src={photo.url}
             alt={photo.caption || '照片'}
             loading="lazy"
+            decoding="async"
+            fetchPriority="low"
             onLoad={() => setLoaded(true)}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            className="w-full h-full object-cover group-hover:scale-105"
+            style={{
+              opacity: loaded ? 1 : 0,
+              filter: loaded ? 'blur(0px)' : 'blur(10px)',
+              transition: 'opacity 0.7s ease, filter 0.7s ease, transform 0.5s ease',
+            }}
           />
-          {!loaded && (
-            <div className={`w-full bg-slate-200 dark:bg-slate-700 animate-pulse ${isLandscape ? 'aspect-[4/3]' : 'aspect-[4/5]'}`} />
-          )}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
         </div>
 
@@ -216,7 +234,14 @@ function AlbumCard({ album, isExpanded, onToggle, onPhotoClick }: {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
               <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg ring-1 ring-black/5 dark:ring-white/10">
-                <img src={photo.url} alt={photo.caption || album.title} className="w-full h-full object-cover" loading="lazy" />
+                <img
+                  src={photo.url}
+                  alt={photo.caption || album.title}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                  fetchPriority="high"
+                />
               </div>
             </motion.div>
           ))}
@@ -302,6 +327,19 @@ function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
     return () => { document.body.style.overflow = '' }
   }, [open])
 
+  // 预加载相邻图片（下一张 + 上一张），切换时更流畅
+  useEffect(() => {
+    if (!open || photos.length <= 1) return
+    const preload = (idx: number) => {
+      const p = photos[idx]
+      if (!p) return
+      const img = new Image()
+      img.src = p.url
+    }
+    preload((currentIndex + 1) % photos.length)
+    preload((currentIndex - 1 + photos.length) % photos.length)
+  }, [currentIndex, photos, open])
+
   return (
     <AnimatePresence>
       {open && (
@@ -349,6 +387,7 @@ function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
             onClick={(e) => e.stopPropagation()}
           >
             <img src={photo.url} alt={photo.caption || '照片'}
+              decoding="async"
               className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
             {photo.caption && (
               <div className="absolute -bottom-10 left-0 right-0 text-center">

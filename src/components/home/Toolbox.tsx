@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronLeft, Search, RefreshCw } from 'lucide-react'
+import { ChevronLeft, Search, RefreshCw, X, Copy, Check, Building2 } from 'lucide-react'
 import { playClickSound } from '@/utils/sounds'
 
 // 同源代理前缀：开发/预览服务器会把 /uapis 转发到 https://uapis.cn/api/v1
@@ -285,16 +285,32 @@ const LANG_COLORS: Record<string, string> = {
 }
 const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
 
+// GitHub 用户搜索缓存（5 分钟 TTL，避免重复请求触发限流）
+const ghUserCache = new Map<string, { user: any; repos: any[]; ts: number }>()
+const GH_CACHE_TTL = 5 * 60 * 1000
+
+// 空状态推荐用户
+const POPULAR_GH_USERS = [
+  { login: 'torvalds', desc: 'Linux 之父' },
+  { login: 'gaearon', desc: 'React 核心团队' },
+  { login: 'yyx990803', desc: 'Vue / Vite 作者' },
+  { login: 'sindresorhus', desc: '超 1000+ 开源项目' },
+  { login: 'tj', desc: 'Express / Koa 作者' },
+]
+
 function GitHubUserTool() {
   const [username, setUsername] = useState('')
   const [user, setUser] = useState<any>(null)
   const [topRepos, setTopRepos] = useState<any[]>([])
+  const [langStats, setLangStats] = useState<{ lang: string; pct: number; color: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingRepos, setLoadingRepos] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [history, setHistory] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('github-user-history') || '[]') } catch { return [] }
   })
+  const abortRef = useRef<AbortController | null>(null)
 
   const saveHistory = (name: string) => {
     const updated = [name, ...history.filter(h => h !== name)].slice(0, 6)
@@ -302,21 +318,54 @@ function GitHubUserTool() {
     localStorage.setItem('github-user-history', JSON.stringify(updated))
   }
 
+  /** 从仓库列表聚合语言分布（按仓库 size 加权） */
+  const computeLangStats = (repos: any[]) => {
+    const langBytes: Record<string, number> = {}
+    repos.forEach(r => {
+      if (r.language) langBytes[r.language] = (langBytes[r.language] || 0) + (r.size || 1)
+    })
+    const total = Object.values(langBytes).reduce((a, b) => a + b, 0)
+    if (!total) { setLangStats([]); return }
+    setLangStats(
+      Object.entries(langBytes)
+        .map(([lang, bytes]) => ({ lang, pct: Math.round((bytes / total) * 100), color: LANG_COLORS[lang] || '#ccc' }))
+        .sort((a, b) => b.pct - a.pct)
+        .slice(0, 5),
+    )
+  }
+
   const search = async (name?: string) => {
     const q = (name ?? username).trim()
     if (!q) return
     if (name) setUsername(name)
-    setLoading(true); setError(null); setUser(null); setTopRepos([])
+
+    // 取消上一个请求，防止竞态
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
+
+    setLoading(true); setError(null); setUser(null); setTopRepos([]); setLangStats([]); setCopied(false)
+
+    // 命中缓存直接返回
+    const cached = ghUserCache.get(q.toLowerCase())
+    if (cached && Date.now() - cached.ts < GH_CACHE_TTL) {
+      setUser(cached.user); setTopRepos(cached.repos.slice(0, 5)); computeLangStats(cached.repos)
+      setLoading(false); saveHistory(cached.user.login); return
+    }
+
     try {
-      const r = await fetch(`https://api.github.com/users/${q}`)
+      const r = await fetch(`https://api.github.com/users/${q}`, { signal: ac.signal })
       if (r.ok) {
         const data = await r.json()
-        setUser(data)
-        saveHistory(data.login)
+        setUser(data); saveHistory(data.login)
         setLoadingRepos(true)
         try {
-          const rr = await fetch(`https://api.github.com/users/${data.login}/repos?sort=stars&per_page=5`)
-          if (rr.ok) setTopRepos((await rr.json()).filter((repo: any) => !repo.fork))
+          const rr = await fetch(`https://api.github.com/users/${data.login}/repos?sort=stars&per_page=30`, { signal: ac.signal })
+          if (rr.ok) {
+            const allRepos = (await rr.json()).filter((repo: any) => !repo.fork)
+            setTopRepos(allRepos.slice(0, 5)); computeLangStats(allRepos)
+            ghUserCache.set(q.toLowerCase(), { user: data, repos: allRepos, ts: Date.now() })
+          }
         } catch {}
         setLoadingRepos(false)
       } else if (r.status === 404) {
@@ -326,25 +375,66 @@ function GitHubUserTool() {
       } else {
         setError('查询失败，请稍后重试')
       }
-    } catch {
-      setError('网络错误，请检查网络连接')
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') setError('网络错误，请检查网络连接')
     }
     setLoading(false)
   }
 
+  const copyProfileUrl = () => {
+    if (!user?.html_url) return
+    navigator.clipboard.writeText(user.html_url).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+
+  /** 将 ISO 时间字符串转为中文相对时间，例如 "5年前"、"3个月前"、"12分钟前" */
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const diffMs = Date.now() - date.getTime()
+    if (diffMs < 0) return '未来'
+    const diffDays = Math.floor(diffMs / 86400000)
+    if (diffDays < 1) {
+      const diffHours = Math.floor(diffMs / 3600000)
+      if (diffHours < 1) {
+        const diffMins = Math.floor(diffMs / 60000)
+        return diffMins < 1 ? '刚刚' : `${diffMins}分钟前`
+      }
+      return `${diffHours}小时前`
+    }
+    if (diffDays < 30) return `${diffDays}天前`
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}个月前`
+    const years = Math.floor(diffDays / 365)
+    const months = Math.floor((diffDays % 365) / 30)
+    return months > 0 ? `${years}年${months}个月前` : `${years}年前`
+  }
+
   return (
     <div className="p-4">
+      {/* 搜索栏（带清除按钮） */}
       <div className="flex gap-2 mb-2">
-        <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索 GitHub 用户名..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+        <div className="flex-1 relative">
+          <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索 GitHub 用户名..." onKeyDown={e => e.key === 'Enter' && search()} className="w-full bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+          {username && (
+            <button type="button" onClick={() => { setUsername(''); setUser(null); setError(null); setTopRepos([]); setLangStats([]) }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))] hover:text-accent transition-colors">
+              <X size={14} />
+            </button>
+          )}
+        </div>
         <button type="button" onClick={() => search()} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">{loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}搜索</button>
       </div>
+
+      {/* 搜索历史 */}
       {history.length > 0 && !user && !loading && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <span className="text-[10px] text-[rgb(var(--text-secondary))]">最近：</span>
           {history.map(h => (
             <button key={h} type="button" onClick={() => search(h)} className="px-2.5 py-1 rounded-lg bg-[rgb(var(--bg-secondary))] text-[11px] text-[rgb(var(--text-secondary))] hover:bg-accent/10 hover:text-accent transition-colors">{h}</button>
           ))}
         </div>
       )}
+
+      {/* 加载骨架 */}
       {loading && (
         <div className="space-y-3 animate-pulse">
           <div className="flex flex-col items-center">
@@ -352,9 +442,11 @@ function GitHubUserTool() {
             <div className="h-5 w-32 rounded bg-[rgb(var(--bg-secondary))] mt-3" />
             <div className="h-3 w-20 rounded bg-[rgb(var(--bg-secondary))] mt-2" />
           </div>
-          <div className="grid grid-cols-3 gap-2">{[0, 1, 2].map(i => <div key={i} className="h-14 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
+          <div className="grid grid-cols-4 gap-2">{[0, 1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
         </div>
       )}
+
+      {/* 错误提示 */}
       {error && !loading && (
         <div className="text-center py-6">
           <div className="text-3xl mb-2">😕</div>
@@ -362,34 +454,106 @@ function GitHubUserTool() {
           <button type="button" onClick={() => search()} className="px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs hover:bg-accent/20 transition-colors">重试</button>
         </div>
       )}
+
+      {/* 空状态 + 推荐用户 */}
       {!loading && !error && !user && (
-        <div className="text-center py-8">
+        <div className="text-center py-6">
           <div className="text-3xl mb-2">🐙</div>
           <p className="text-sm text-[rgb(var(--text-secondary))]">输入 GitHub 用户名开始搜索</p>
-          <p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">例如：torvalds, gaearon, yyx990803</p>
+          <div className="mt-4 space-y-1.5 max-w-[240px] mx-auto">
+            <p className="text-[10px] text-[rgb(var(--text-secondary))]">试试这些大佬：</p>
+            {POPULAR_GH_USERS.map(u => (
+              <button key={u.login} type="button" onClick={() => search(u.login)} className="w-full flex items-center gap-2 p-2 rounded-xl bg-[rgb(var(--bg-secondary))] hover:bg-accent/5 transition-colors text-left">
+                <span className="text-[11px] font-bold text-accent shrink-0">{u.login}</span>
+                <span className="text-[10px] text-[rgb(var(--text-secondary))] truncate">{u.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* 用户资料 */}
       {user && !loading && (
         <div className="text-center">
-          <img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" />
-          <div className="font-bold text-[rgb(var(--text-primary))] text-lg">{user.name || user.login}</div>
+          <img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" loading="lazy" />
+          <div className="font-bold text-[rgb(var(--text-primary))] text-lg flex items-center justify-center gap-2 flex-wrap">
+            {user.name || user.login}
+            {user.type === 'Organization' ? (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-purple-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-purple-400"><Building2 size={10} /> 组织</span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-blue-400">👤 个人</span>
+            )}
+            {user.hireable && (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-400">💚 可雇用</span>
+            )}
+          </div>
           <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">@{user.login}</div>
           {user.bio && <div className="text-xs text-[rgb(var(--text-secondary))] mt-2 px-2 leading-relaxed">{user.bio}</div>}
-          <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
-            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.public_repos)}</div><div className="text-[rgb(var(--text-secondary))]">仓库</div></div>
-            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.followers)}</div><div className="text-[rgb(var(--text-secondary))]">粉丝</div></div>
-            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.following)}</div><div className="text-[rgb(var(--text-secondary))]">关注</div></div>
+
+          {/* 统计数据（4 列：仓库 / Gist / 粉丝 / 关注） */}
+          <div className="grid grid-cols-4 gap-2 mt-4 text-xs">
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.public_repos)}</div><div className="text-[rgb(var(--text-secondary))] text-[10px]">仓库</div></div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.public_gists)}</div><div className="text-[rgb(var(--text-secondary))] text-[10px]">Gist</div></div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.followers)}</div><div className="text-[rgb(var(--text-secondary))] text-[10px]">粉丝</div></div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.following)}</div><div className="text-[rgb(var(--text-secondary))] text-[10px]">关注</div></div>
           </div>
-          <div className="text-xs text-[rgb(var(--text-secondary))] mt-3 space-y-1 text-left px-2">
+
+          {/* 粉丝/关注比 */}
+          {user.followers > 0 && (
+            <div className="mt-2">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
+                粉丝比 {user.following > 0 ? `${(user.followers / user.following).toFixed(1)}x` : '∞'}
+              </span>
+            </div>
+          )}
+
+          {/* 附加信息 */}
+          <div className="text-xs text-[rgb(var(--text-secondary))] mt-3 space-y-1.5 text-left px-2">
             {user.location && <div>📍 {user.location}</div>}
             {user.company && <div>🏢 {user.company}</div>}
-            {user.blog && <a href={user.blog.startsWith('http') ? user.blog : `https://${user.blog}`} target="_blank" rel="noreferrer" className="block text-accent hover:underline truncate">🔗 {user.blog}</a>}
-            {user.twitter_username && <a href={`https://twitter.com/${user.twitter_username}`} target="_blank" rel="noreferrer" className="block text-accent hover:underline">🐦 @{user.twitter_username}</a>}
-            {user.created_at && <div>📅 加入于 {new Date(user.created_at).toLocaleDateString('zh-CN')}</div>}
+            {(user.blog || user.twitter_username) && (
+              <div className="flex flex-wrap gap-1.5">
+                {user.blog && (
+                  <a href={user.blog.startsWith('http') ? user.blog : `https://${user.blog}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 max-w-full rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] text-blue-400 transition-colors hover:bg-blue-500/25">
+                    <span className="shrink-0">🔗</span>
+                    <span className="truncate">{user.blog.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+                  </a>
+                )}
+                {user.twitter_username && (
+                  <a href={`https://twitter.com/${user.twitter_username}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-400 transition-colors hover:bg-sky-500/25">
+                    <span>🐦</span>@{user.twitter_username}
+                  </a>
+                )}
+              </div>
+            )}
+            {user.created_at && <div>📅 加入于 {new Date(user.created_at).toLocaleDateString('zh-CN')}（{formatRelativeTime(user.created_at)}）</div>}
+            {user.updated_at && <div>🕐 最近活跃 {formatRelativeTime(user.updated_at)}</div>}
           </div>
+
+          {/* 语言分布图 */}
+          {langStats.length > 0 && (
+            <div className="mt-4 text-left px-1">
+              <div className="text-xs font-bold text-[rgb(var(--text-secondary))] mb-2">📊 语言分布</div>
+              <div className="flex h-2.5 rounded-full overflow-hidden bg-[rgb(var(--bg-secondary))]">
+                {langStats.map(s => <div key={s.lang} style={{ width: `${s.pct}%`, background: s.color }} title={`${s.lang} ${s.pct}%`} />)}
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                {langStats.map(s => (
+                  <span key={s.lang} className="flex items-center gap-1 text-[10px] text-[rgb(var(--text-secondary))]">
+                    <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />{s.lang} {s.pct}%
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 热门仓库（增强卡片） */}
           {topRepos.length > 0 && (
             <div className="mt-4 text-left">
-              <div className="text-xs font-bold text-[rgb(var(--text-secondary))] mb-2 px-1">🏆 热门仓库</div>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-xs font-bold text-[rgb(var(--text-secondary))]">🏆 热门仓库</span>
+                <a href={`https://github.com/${user.login}?tab=repositories`} target="_blank" rel="noreferrer" className="text-[10px] text-accent hover:underline">查看全部 →</a>
+              </div>
               <div className="space-y-1.5">
                 {topRepos.map((repo: any) => (
                   <a key={repo.id} href={repo.html_url} target="_blank" rel="noreferrer" className="block p-2.5 rounded-xl bg-[rgb(var(--bg-secondary))] hover:bg-accent/5 transition-colors">
@@ -398,7 +562,17 @@ function GitHubUserTool() {
                       <span className="text-[10px] text-[rgb(var(--text-secondary))] shrink-0 ml-2">⭐ {formatCount(repo.stargazers_count)}</span>
                     </div>
                     {repo.description && <div className="text-[10px] text-[rgb(var(--text-secondary))] mt-0.5 line-clamp-2">{repo.description}</div>}
-                    {repo.language && <div className="flex items-center gap-1 mt-1"><span className="w-2 h-2 rounded-full" style={{ background: LANG_COLORS[repo.language] || '#ccc' }} /><span className="text-[10px] text-[rgb(var(--text-secondary))]">{repo.language}</span></div>}
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {repo.language && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: LANG_COLORS[repo.language] || '#ccc' }} /><span className="text-[10px] text-[rgb(var(--text-secondary))]">{repo.language}</span></span>}
+                      <span className="text-[10px] text-[rgb(var(--text-secondary))]">🍴 {formatCount(repo.forks_count)}</span>
+                      <span className="text-[10px] text-[rgb(var(--text-secondary))]">🔄 {new Date(repo.updated_at).toLocaleDateString('zh-CN')}</span>
+                      {repo.archived && <span className="text-[10px] text-amber-500">📦 已归档</span>}
+                    </div>
+                    {repo.topics && repo.topics.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {repo.topics.slice(0, 3).map((t: string) => <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-accent/10 text-accent">{t}</span>)}
+                      </div>
+                    )}
                   </a>
                 ))}
               </div>
@@ -410,7 +584,14 @@ function GitHubUserTool() {
               <div className="space-y-1.5 animate-pulse">{[0, 1, 2].map(i => <div key={i} className="h-12 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
             </div>
           )}
-          <a href={user.html_url} target="_blank" rel="noreferrer" className="inline-block mt-4 px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors">查看 GitHub 主页 →</a>
+
+          {/* 操作按钮 */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <a href={user.html_url} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors">查看 GitHub 主页 →</a>
+            <button type="button" onClick={copyProfileUrl} className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))] text-xs hover:bg-accent/10 hover:text-accent transition-colors">
+              {copied ? <><Check size={12} /> 已复制</> : <><Copy size={12} /> 复制链接</>}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -423,9 +604,12 @@ function GitHubRepoTool() {
   const [loading, setLoading] = useState(false)
   const [sortBy, setSortBy] = useState<'stars' | 'forks' | 'updated'>('stars')
   const [searched, setSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
   const [history, setHistory] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('github-repo-history') || '[]') } catch { return [] }
   })
+  const abortRef = useRef<AbortController | null>(null)
 
   const saveHistory = (q: string) => {
     const updated = [q, ...history.filter(h => h !== q)].slice(0, 6)
@@ -437,20 +621,36 @@ function GitHubRepoTool() {
     const term = (q ?? query).trim()
     if (!term) return
     if (q) setQuery(q)
-    setLoading(true); setSearched(true)
+
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
+
+    setLoading(true); setSearched(true); setError(null)
     try {
-      const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(term)}&sort=${sortBy}&per_page=8`)
+      const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(term)}&sort=${sortBy}&per_page=8`, { signal: ac.signal })
+      if (r.status === 403) { setError('API 频率超限，请稍后再试'); setRepos([]); setLoading(false); return }
       const d = await r.json()
       setRepos(d.items || [])
+      setTotalCount(d.total_count || 0)
       if (d.items?.length > 0) saveHistory(term)
-    } catch { setRepos([]) }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') { setError('网络错误，请检查连接'); setRepos([]) }
+    }
     setLoading(false)
   }
 
   return (
     <div className="p-4">
       <div className="flex gap-2 mb-2">
-        <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索仓库..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+        <div className="flex-1 relative">
+          <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索仓库..." onKeyDown={e => e.key === 'Enter' && search()} className="w-full bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+          {query && (
+            <button type="button" onClick={() => { setQuery(''); setRepos([]); setSearched(false); setError(null) }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))] hover:text-accent transition-colors">
+              <X size={14} />
+            </button>
+          )}
+        </div>
         <button type="button" onClick={() => search()} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">{loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}搜索</button>
       </div>
       <div className="flex gap-1 mb-2">
@@ -459,15 +659,26 @@ function GitHubRepoTool() {
         ))}
       </div>
       {history.length > 0 && !searched && (
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span className="text-[10px] text-[rgb(var(--text-secondary))]">最近：</span>
           {history.map(h => <button key={h} type="button" onClick={() => search(h)} className="px-2.5 py-1 rounded-lg bg-[rgb(var(--bg-secondary))] text-[11px] text-[rgb(var(--text-secondary))] hover:bg-accent/10 hover:text-accent transition-colors">{h}</button>)}
         </div>
       )}
+      {/* 结果计数 */}
+      {!loading && searched && !error && repos.length > 0 && (
+        <div className="text-[10px] text-[rgb(var(--text-secondary))] mb-2 px-1">共找到 {formatCount(totalCount)} 个仓库，显示前 {repos.length} 个</div>
+      )}
       <div className="space-y-2 overflow-y-auto max-h-[320px]">
         {loading && [0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-[rgb(var(--bg-secondary))] animate-pulse" />)}
-        {!loading && repos.map((repo: any) => (
+        {error && !loading && (
+          <div className="text-center py-6"><div className="text-3xl mb-2">😕</div><p className="text-sm text-[rgb(var(--text-secondary))] mb-3">{error}</p><button type="button" onClick={() => search()} className="px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs hover:bg-accent/20 transition-colors">重试</button></div>
+        )}
+        {!loading && !error && repos.map((repo: any) => (
           <a key={repo.id} href={repo.html_url} target="_blank" rel="noreferrer" className="block p-3 rounded-xl bg-[rgb(var(--bg-secondary))] hover:bg-accent/5 transition-colors">
-            <div className="font-bold text-sm text-accent truncate">{repo.full_name}</div>
+            <div className="flex items-center gap-1">
+              <span className="font-bold text-sm text-accent truncate">{repo.full_name}</span>
+              {repo.archived && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500">已归档</span>}
+            </div>
             <div className="text-xs text-[rgb(var(--text-secondary))] mt-1 line-clamp-2">{repo.description || '暂无描述'}</div>
             <div className="flex gap-3 mt-2 text-[10px] text-[rgb(var(--text-secondary))] items-center flex-wrap">
               {repo.language && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: LANG_COLORS[repo.language] || '#ccc' }} />{repo.language}</span>}
@@ -476,12 +687,17 @@ function GitHubRepoTool() {
               {repo.license && <span>📜 {repo.license.spdx_id}</span>}
               <span>🔄 {new Date(repo.updated_at).toLocaleDateString('zh-CN')}</span>
             </div>
+            {repo.topics && repo.topics.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {repo.topics.slice(0, 4).map((t: string) => <span key={t} className="text-[9px] px-1.5 py-0.5 rounded-md bg-accent/10 text-accent">{t}</span>)}
+              </div>
+            )}
           </a>
         ))}
-        {!loading && searched && repos.length === 0 && (
+        {!loading && !error && searched && repos.length === 0 && (
           <div className="text-center py-8"><div className="text-3xl mb-2">📦</div><p className="text-sm text-[rgb(var(--text-secondary))]">未找到相关仓库</p></div>
         )}
-        {!loading && !searched && (
+        {!loading && !error && !searched && (
           <div className="text-center py-8"><div className="text-3xl mb-2">📦</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入关键词搜索 GitHub 仓库</p></div>
         )}
       </div>

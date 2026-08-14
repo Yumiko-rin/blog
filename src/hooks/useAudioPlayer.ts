@@ -10,7 +10,7 @@ let audioInstance: HTMLAudioElement | null = null
 function getAudio(): HTMLAudioElement {
   if (!audioInstance) {
     audioInstance = new Audio()
-    audioInstance.preload = 'metadata'
+    audioInstance.preload = 'none'
   }
   return audioInstance
 }
@@ -41,31 +41,36 @@ export function useAudioPlayer() {
 
   const audio = audioRef.current
 
-  /* ===== 切歌：src 变化时加载并自动播放 ===== */
+  /* 切歌保护：src 变化期间忽略 onPause 回写，防止 AbortError 反馈循环 */
+  const changingRef = useRef(false)
+
+  /* ===== 切歌：仅设置 src，不在此处调 play() ===== */
   useEffect(() => {
     if (!currentSong) return
-    if (audio.src !== currentSong.src) {
-      audio.src = currentSong.src
-    }
-    if (isPlaying) {
-      audio.play().catch(() => {
-        // 自动播放策略可能阻止，静默处理
-        setIsPlaying(false)
-      })
-    }
+    changingRef.current = true
+    audio.src = currentSong.src
+    // 浏览器处理完 src 变更后释放保护
+    const timer = setTimeout(() => { changingRef.current = false }, 200)
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSong])
 
-  /* ===== 播放/暂停控制 ===== */
+  /* ===== 播放/暂停控制（切歌后自动播放也走这里）===== */
   useEffect(() => {
     if (!currentSong) return
     if (isPlaying) {
-      audio.play().catch(() => setIsPlaying(false))
+      audio.play().catch((e) => {
+        // AbortError 是 src 变化时的正常中断，忽略即可
+        if (e?.name !== 'AbortError') {
+          console.error('[audio] play() failed:', e?.name, e?.message)
+          setIsPlaying(false)
+        }
+      })
     } else {
       audio.pause()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying])
+  }, [isPlaying, currentSong])
 
   /* ===== 音量控制 ===== */
   useEffect(() => {
@@ -78,13 +83,22 @@ export function useAudioPlayer() {
     const onLoadedMeta = () => setDuration(audio.duration || 0)
     const onEnded = () => handleNext(true)
     const onPlay = () => setIsPlaying(true)
-    const onPause = () => setIsPlaying(false)
+    const onPause = () => {
+      // 切歌期间 ignore，防止 AbortError → pause → setIsPlaying(false) 反馈循环
+      if (!changingRef.current) setIsPlaying(false)
+    }
+    const onError = () => {
+      const err = audio.error
+      console.error('[audio] error code:', err?.code, 'src:', audio.src?.slice(0, 80))
+      setIsPlaying(false)
+    }
 
     audio.addEventListener('timeupdate', onTimeUpdate)
     audio.addEventListener('loadedmetadata', onLoadedMeta)
     audio.addEventListener('ended', onEnded)
     audio.addEventListener('play', onPlay)
     audio.addEventListener('pause', onPause)
+    audio.addEventListener('error', onError)
 
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate)
@@ -92,6 +106,7 @@ export function useAudioPlayer() {
       audio.removeEventListener('ended', onEnded)
       audio.removeEventListener('play', onPlay)
       audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('error', onError)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
