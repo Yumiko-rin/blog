@@ -83,8 +83,16 @@ export function PlaylistPanel({
 
   return (
     <div className="flex flex-col gap-5 lg:flex-row">
-      {/* ===== 左侧：歌单列表 ===== */}
-      <div className="flex gap-3 overflow-x-auto pb-2 lg:w-72 lg:flex-col lg:overflow-visible lg:pb-0 scrollbar-hide">
+      {/* ===== 左侧：歌单目录 ===== */}
+      <div className="lg:w-72 shrink-0">
+        {/* 歌单目录标题 */}
+        <div className="flex items-center gap-2 mb-3 px-2">
+          <Disc3 size={15} className="text-accent" />
+          <h4 className="text-sm font-bold text-[rgb(var(--text-primary))] tracking-wide">歌单目录</h4>
+          <span className="text-[11px] text-[rgb(var(--text-secondary))]/60">{playlists.length} 个</span>
+        </div>
+
+        <div className="flex gap-3 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0 scrollbar-hide">
         {playlists.map((pl, idx) => {
           const isSelected = pl.id === selected.id
           const hasPlaying = pl.songs.some((s) => s.id === currentSongId)
@@ -136,6 +144,7 @@ export function PlaylistPanel({
             </button>
           )
         })}
+        </div>
       </div>
 
       {/* ===== 右侧：歌曲清单 ===== */}

@@ -110,9 +110,10 @@ function WeatherTool() {
   const [city, setCity] = useState('')
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const loadWeather = async (cityName: string) => {
-    setSearching(true)
+    setSearching(true); setError(null)
     let targetCity = cityName || ''
     let province = ''
     if (!targetCity) {
@@ -132,9 +133,14 @@ function WeatherTool() {
     if (!targetCity) targetCity = '北京'
     try {
       const res = await fetch(`${API}/misc/weather?city=${encodeURIComponent(targetCity)}&extended=true&forecast=true&hourly=true&indices=true&lang=zh`)
+      if (!res.ok) throw new Error('API error')
       const data = await res.json()
+      if (!data || (!data.temperature && !data.city)) throw new Error('empty')
       setWeather({ ...data, province: province || data.province })
-    } catch {}
+    } catch {
+      setError('天气数据获取失败，请稍后重试')
+      setWeather(null)
+    }
     setSearching(false); setLoading(false)
   }
 
@@ -158,6 +164,23 @@ function WeatherTool() {
         </button>
       </div>
 
+      {error && !searching && (
+        <div className="text-center py-8">
+          <div className="text-4xl mb-3">🌦️</div>
+          <p className="text-sm text-[rgb(var(--text-secondary))] mb-4">{error}</p>
+          <button type="button" onClick={() => loadWeather(city)} className="px-4 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">重新获取</button>
+        </div>
+      )}
+
+      {!error && !weather && !searching && (
+        <div className="text-center py-8">
+          <div className="text-4xl mb-3">🌤️</div>
+          <p className="text-sm text-[rgb(var(--text-secondary))]">暂无天气数据，请输入城市名搜索</p>
+        </div>
+      )}
+
+      {!error && weather && (
+      <>
       {/* 标签切换 */}
       <div className="flex gap-1 mb-3 bg-[rgb(var(--bg-secondary))] rounded-xl p-1">
         {(['realtime', 'forecast', 'index'] as const).map(t => (
@@ -168,7 +191,7 @@ function WeatherTool() {
         ))}
       </div>
 
-      {weather && tab === 'realtime' && (
+      {tab === 'realtime' && (
         <div>
           <div className="text-center mb-4">
             <div className="text-5xl mb-2">{getWeatherIcon(weather.weather_icon || '100')}</div>
@@ -231,6 +254,8 @@ function WeatherTool() {
           })()}
         </div>
       )}
+      </>
+      )}
     </div>
   )
 }
@@ -250,9 +275,27 @@ function BilibiliHotTool() {
 }
 
 function GitHubUserTool() {
-  const [username, setUsername] = useState(''); const [user, setUser] = useState<any>(null); const [loading, setLoading] = useState(false)
-  const search = async () => { if (!username.trim()) return; setLoading(true); try { const r = await fetch(`https://api.github.com/users/${username.trim()}`); if (r.ok) { setUser(await r.json()) } else { setUser(null) } } catch { setUser(null) }; setLoading(false) }
-  return (<div className="p-4"><div className="flex gap-2 mb-4"><input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索用户..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" /><button type="button" onClick={search} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '搜索'}</button></div>{user && <div className="text-center"><img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" /><div className="font-bold text-[rgb(var(--text-primary))] text-lg">{user.name || user.login}</div><div className="text-xs text-[rgb(var(--text-secondary))] mt-1">@{user.login}</div>{user.bio && <div className="text-xs text-[rgb(var(--text-secondary))] mt-2 px-2">{user.bio}</div>}<div className="grid grid-cols-3 gap-2 mt-4 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.public_repos}</div><div className="text-[rgb(var(--text-secondary))]">仓库</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.followers}</div><div className="text-[rgb(var(--text-secondary))]">粉丝</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.following}</div><div className="text-[rgb(var(--text-secondary))]">关注</div></div></div>{user.location && <div className="text-xs text-[rgb(var(--text-secondary))] mt-3">📍 {user.location}</div>}{user.company && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">🏢 {user.company}</div>}{user.blog && <div className="text-xs text-accent mt-1 truncate">🔗 {user.blog}</div>}</div>}{!user && !loading && username && <p className="text-center text-sm text-[rgb(var(--text-secondary))]">未找到用户</p>}</div>)
+  const [username, setUsername] = useState(''); const [user, setUser] = useState<any>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null)
+  const search = async () => {
+    if (!username.trim()) return
+    setLoading(true); setError(null); setUser(null)
+    try {
+      const r = await fetch(`https://api.github.com/users/${username.trim()}`)
+      if (r.ok) {
+        setUser(await r.json())
+      } else if (r.status === 404) {
+        setError('未找到该用户，请检查用户名')
+      } else if (r.status === 403) {
+        setError('API 请求频率超限，请稍后再试')
+      } else {
+        setError('查询失败，请稍后重试')
+      }
+    } catch {
+      setError('网络错误，请检查网络连接')
+    }
+    setLoading(false)
+  }
+  return (<div className="p-4"><div className="flex gap-2 mb-4"><input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索 GitHub 用户名..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" /><button type="button" onClick={search} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '搜索'}</button></div>{loading && <div className="flex items-center justify-center py-8"><RefreshCw size={20} className="animate-spin text-accent" /></div>}{error && <div className="text-center py-6"><div className="text-3xl mb-2">😕</div><p className="text-sm text-[rgb(var(--text-secondary))]">{error}</p></div>}{!loading && !error && !user && <div className="text-center py-8"><div className="text-3xl mb-2">🐙</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入 GitHub 用户名开始搜索</p><p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">例如：torvalds, gaearon, yyx990803</p></div>}{user && <div className="text-center"><img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" /><div className="font-bold text-[rgb(var(--text-primary))] text-lg">{user.name || user.login}</div><div className="text-xs text-[rgb(var(--text-secondary))] mt-1">@{user.login}</div>{user.bio && <div className="text-xs text-[rgb(var(--text-secondary))] mt-2 px-2 leading-relaxed">{user.bio}</div>}<div className="grid grid-cols-3 gap-2 mt-4 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.public_repos}</div><div className="text-[rgb(var(--text-secondary))]">仓库</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.followers}</div><div className="text-[rgb(var(--text-secondary))]">粉丝</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.following}</div><div className="text-[rgb(var(--text-secondary))]">关注</div></div></div>{user.location && <div className="text-xs text-[rgb(var(--text-secondary))] mt-3">📍 {user.location}</div>}{user.company && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">🏢 {user.company}</div>}{user.blog && <a href={user.blog.startsWith('http') ? user.blog : `https://${user.blog}`} target="_blank" rel="noreferrer" className="text-xs text-accent mt-1 truncate block hover:underline">🔗 {user.blog}</a>}{user.created_at && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">📅 加入于 {new Date(user.created_at).toLocaleDateString('zh-CN')}</div>}<a href={user.html_url} target="_blank" rel="noreferrer" className="inline-block mt-4 px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors">查看 GitHub 主页 →</a></div>}</div>)
 }
 
 function GitHubRepoTool() {
@@ -715,20 +758,23 @@ function ExpressTrackingTool() {
 
 // ========== 手机归属地 ==========
 function PhoneLocationTool() {
-  const [phone, setPhone] = useState(''); const [result, setResult] = useState<any>(null); const [loading, setLoading] = useState(false)
+  const [phone, setPhone] = useState(''); const [result, setResult] = useState<any>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null)
   const query = async () => {
-    if (!phone.trim() || phone.trim().length < 7) return
-    setLoading(true); setResult(null)
+    if (!phone.trim()) { setError('请输入手机号码'); return }
+    if (phone.trim().length < 7) { setError('手机号码至少需要 7 位'); return }
+    setLoading(true); setError(null); setResult(null)
     try {
       const r = await fetch(`${API}/misc/phoneinfo?phone=${phone.trim()}`)
+      if (!r.ok) throw new Error('API error')
       const d = await r.json()
-      setResult(d)
+      if (!d || (!d.province && !d.city && !d.sp)) { setError('未查询到归属地信息'); }
+      else { setResult(d) }
     } catch {
-      setResult({ province: '查询失败', city: '', operator: '' })
+      setError('查询失败，请稍后重试')
     }
     setLoading(false)
   }
-  return (<div className="p-4"><div className="flex gap-2 mb-4"><input type="text" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} onKeyDown={e => e.key === 'Enter' && query()} placeholder="输入手机号码..." className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" /><button type="button" onClick={query} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '查询'}</button></div>{result && <div className="space-y-2"><div className="text-center p-4 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="text-2xl font-bold text-accent">{phone}</div><div className="text-sm text-[rgb(var(--text-secondary))] mt-1">{result.province || result.provinceName}{result.city || result.cityName ? ' ' + (result.city || result.cityName) : ''}</div></div><div className="grid grid-cols-2 gap-2 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="text-[rgb(var(--text-secondary))]">运营商</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.operator || result.isp || result.sp || '—'}</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="text-[rgb(var(--text-secondary))]">邮编</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.zipcode || result.zip || '—'}</div></div></div></div>}</div>)
+  return (<div className="p-4"><div className="flex gap-2 mb-3"><input type="text" value={phone} onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 11)); setError(null) }} onKeyDown={e => e.key === 'Enter' && query()} placeholder="输入手机号码..." className={`flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-400/40' : 'focus:ring-accent/30'}`} /><button type="button" onClick={query} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '查询'}</button></div>{error && <div className="text-center py-2 mb-2"><p className="text-xs text-red-400">{error}</p></div>}{loading && <div className="flex items-center justify-center py-8"><RefreshCw size={20} className="animate-spin text-accent" /></div>}{!loading && !result && !error && <div className="text-center py-8"><div className="text-3xl mb-2">📱</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入手机号码查询归属地</p><p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">支持移动、联通、电信号码</p></div>}{result && <div className="space-y-2"><div className="text-center p-4 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5"><div className="text-2xl font-bold text-accent tracking-wider">{phone}</div><div className="text-sm text-[rgb(var(--text-primary))] mt-1">{result.province || result.provinceName}{result.city || result.cityName ? ' · ' + (result.city || result.cityName) : ''}</div></div><div className="grid grid-cols-2 gap-2 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center"><div className="text-[rgb(var(--text-secondary))] mb-0.5">运营商</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.operator || result.isp || result.sp || '—'}</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center"><div className="text-[rgb(var(--text-secondary))] mb-0.5">邮编</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.zipcode || result.zip || '—'}</div></div></div></div>}</div>)
 }
 
 // ========== 主组件 ==========

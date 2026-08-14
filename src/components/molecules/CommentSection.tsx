@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, ThumbsUp, Reply, Trash2, Smile,
-  ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, Mail, Lock, LogIn, UserPlus, LogOut,
+  ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, Mail, Lock, LogIn, UserPlus, LogOut, X,
 } from 'lucide-react'
 import {
   listComments, createComment, likeComment, deleteComment,
   readIdentity, saveIdentity, avatarFor, relativeTime,
-  getSession, clearSession, isAdminUser, WALINE_SERVER,
+  getSession, clearSession, isAdminUser,
+  walineLogin, walineRegister, requestWalineCode,
   type CommentNode, type CommentPage, type Identity, type SortKey,
 } from '@/utils/comments'
 import { renderCommentContent, EMOJI_LIST } from '@/utils/commentMarkdown'
@@ -390,14 +391,80 @@ export function CommentSection({ path }: { path: string }) {
   const [pageNo, setPageNo] = useState(1)
   const [replyingTo, setReplyingTo] = useState<CommentNode | null>(null)
   const [notice, setNotice] = useState('')
-  // 当前登录会话（登录/注册跳转后重进页面自动恢复）
+  // 当前登录会话（登录/注册成功后本页立即生效，无需跳转）
   const [session, setSession] = useState(() => getSession())
 
-  // Waline 官方 UI 登录 / 注册页（跳转，不使用验证码环节）
-  // Waline 官方登录/注册页地址：登录/注册完成后通过 redirect 自动返回当前博客页面
-  const walineUiUrl = (page: 'login' | 'register') => {
-    const back = `${window.location.origin}${window.location.pathname}`
-    return `${WALINE_SERVER}/ui/${page}?redirect=${encodeURIComponent(back)}`
+  /* ---------- 站内登录/注册（Waline 邮箱验证码，完成后立即返回，不跳转） ---------- */
+  const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null)
+  const [authMail, setAuthMail] = useState('')
+  const [authNick, setAuthNick] = useState('')
+  const [authCode, setAuthCode] = useState('')
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [codeCountdown, setCodeCountdown] = useState(0)
+  const codeTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const handleSendCode = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authMail.trim())) {
+      setAuthError('邮箱格式不正确')
+      return
+    }
+    setAuthBusy(true)
+    setAuthError('')
+    const r = await requestWalineCode(authMail.trim())
+    setAuthBusy(false)
+    if (!r.ok) {
+      setAuthError(r.error || '验证码发送失败，请检查邮箱')
+      return
+    }
+    setCodeCountdown(60)
+    if (codeTimer.current) clearInterval(codeTimer.current)
+    codeTimer.current = setInterval(() => {
+      setCodeCountdown((c) => {
+        if (c <= 1) {
+          if (codeTimer.current) clearInterval(codeTimer.current)
+          return 0
+        }
+        return c - 1
+      })
+    }, 1000)
+    flash('验证码已发送至邮箱，请查收')
+  }
+
+  const handleAuthSubmit = async () => {
+    const m = authMail.trim()
+    if (!m || !authCode.trim()) {
+      setAuthError('请填写邮箱和验证码')
+      return
+    }
+    if (authMode === 'register' && !authNick.trim()) {
+      setAuthError('请填写昵称')
+      return
+    }
+    setAuthBusy(true)
+    setAuthError('')
+    const r =
+      authMode === 'login'
+        ? await walineLogin(m, authCode.trim())
+        : await walineRegister(authNick.trim(), m, authCode.trim())
+    setAuthBusy(false)
+    if (!r.ok) {
+      setAuthError(r.error || (authMode === 'login' ? '登录失败，请检查验证码' : '注册失败'))
+      return
+    }
+    // 成功：立即关闭弹窗并刷新会话/评论 —— 全程不离开博客
+    setAuthMode(null)
+    setAuthMail('')
+    setAuthNick('')
+    setAuthCode('')
+    setSession(getSession())
+    flash(authMode === 'login' ? '登录成功，欢迎回来' : '注册成功，已自动登录')
+    load(pageNo, sort)
+  }
+
+  const switchAuthMode = () => {
+    setAuthError('')
+    setAuthMode((m) => (m === 'login' ? 'register' : 'login'))
   }
 
   const load = async (p = pageNo, s = sort) => {
@@ -520,18 +587,20 @@ export function CommentSection({ path }: { path: string }) {
           <>
             <span className="text-xs text-[rgb(var(--text-secondary))]">登录后评论可显示身份并管理你的发言</span>
             <div className="ml-auto flex items-center gap-1.5">
-              <a
-                href={walineUiUrl('login')}
+              <button
+                type="button"
+                onClick={() => { setAuthError(''); setAuthMode('login') }}
                 className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-[rgb(var(--text-primary))] border border-[var(--border-color)] hover:border-accent hover:text-accent transition-colors"
               >
                 <LogIn size={12} /> 登录
-              </a>
-              <a
-                href={walineUiUrl('register')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthError(''); setAuthMode('register') }}
                 className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium bg-accent text-white hover:opacity-90 transition-colors"
               >
                 <UserPlus size={12} /> 注册
-              </a>
+              </button>
             </div>
           </>
         )}
@@ -616,6 +685,110 @@ export function CommentSection({ path }: { path: string }) {
         </span>
         {notice && <span className="text-accent">{notice}</span>}
       </div>
+
+      {/* 站内登录/注册弹窗（Waline 邮箱验证码，完成后立即返回博客） */}
+      {authMode && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setAuthMode(null)}
+          />
+          <div className="relative w-full max-w-sm rounded-2xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-bold text-[rgb(var(--text-primary))]">
+                {authMode === 'login' ? '登录' : '注册'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAuthMode(null)}
+                className="rounded-lg p-1 text-[rgb(var(--text-secondary))] hover:bg-white/10 hover:text-[rgb(var(--text-primary))] transition-colors"
+                aria-label="关闭"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {/* 邮箱 */}
+              <div className="relative">
+                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
+                <input
+                  value={authMail}
+                  onChange={(e) => setAuthMail(e.target.value)}
+                  placeholder="邮箱"
+                  type="email"
+                  autoComplete="email"
+                  className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
+                />
+              </div>
+
+              {/* 昵称（仅注册） */}
+              {authMode === 'register' && (
+                <div className="relative">
+                  <UserPlus size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
+                  <input
+                    value={authNick}
+                    onChange={(e) => setAuthNick(e.target.value)}
+                    placeholder="昵称（注册用）"
+                    autoComplete="nickname"
+                    className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* 验证码 + 发送 */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[rgb(var(--text-secondary))]" />
+                  <input
+                    value={authCode}
+                    onChange={(e) => setAuthCode(e.target.value)}
+                    placeholder="邮箱验证码"
+                    autoComplete="one-time-code"
+                    className="w-full rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-primary))]/60 py-2.5 pl-9 pr-3 text-sm text-[rgb(var(--text-primary))] placeholder:text-[rgb(var(--text-secondary))]/50 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={authBusy || codeCountdown > 0}
+                  className="shrink-0 rounded-xl border border-[var(--border-color)] px-3 py-2 text-xs font-medium text-[rgb(var(--text-primary))] disabled:opacity-40 hover:border-accent hover:text-accent transition-colors"
+                >
+                  {codeCountdown > 0 ? `${codeCountdown}s 后重发` : authBusy ? '发送中…' : '发送验证码'}
+                </button>
+              </div>
+
+              {/* 错误提示 */}
+              {authError && (
+                <p className="text-xs text-red-400">{authError}</p>
+              )}
+
+              {/* 提交 */}
+              <button
+                type="button"
+                onClick={handleAuthSubmit}
+                disabled={authBusy}
+                className="w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-white hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all"
+              >
+                {authBusy ? '请稍候…' : authMode === 'login' ? '登录' : '注册并登录'}
+              </button>
+
+              {/* 切换 */}
+              <button
+                type="button"
+                onClick={switchAuthMode}
+                className="w-full text-center text-xs text-[rgb(var(--text-secondary))] hover:text-accent transition-colors"
+              >
+                {authMode === 'login' ? '没有账号？去注册' : '已有账号？去登录'}
+              </button>
+
+              <p className="text-center text-[11px] text-[rgb(var(--text-secondary))]/60">
+                验证码将发送至你的邮箱（Waline 服务）
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
