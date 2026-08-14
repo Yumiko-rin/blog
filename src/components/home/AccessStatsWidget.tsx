@@ -119,9 +119,9 @@ export function AccessStatsWidget() {
   }, [day])
 
   const items = [
-    { icon: Eye, label: '总访问', value: stats ? stats.total.toLocaleString() : '—', color: 'text-sky-500' },
-    { icon: TrendingUp, label: '今日访问', value: stats ? String(stats.today) : '—', color: 'text-emerald-500' },
-    { icon: Users, label: '访客数', value: stats ? stats.uv.toLocaleString() : '—', color: 'text-violet-500' },
+    { icon: Eye, label: '总访问', value: stats ? (stats.total ?? 0).toLocaleString() : '—', color: 'text-sky-500' },
+    { icon: TrendingUp, label: '今日访问', value: stats ? String(stats.today ?? 0) : '—', color: 'text-emerald-500' },
+    { icon: Users, label: '访客数', value: stats ? (stats.uv ?? 0).toLocaleString() : '—', color: 'text-violet-500' },
   ]
 
   // 近 7 日迷你柱状图（仅服务端模式有数据）

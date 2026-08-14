@@ -1,7 +1,32 @@
 import { useMemo, useState } from 'react'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Heart } from 'lucide-react'
 import { SHUOSHUO, type Shuoshuo } from '@/data/shuoshuo'
 import { CommentSection } from '@/components/molecules/CommentSection'
+
+/* ===== 说说点赞（localStorage 持久化） ===== */
+const SHUOSHUO_LIKED_KEY = 'liked_shuoshuo'
+const SHUOSHUO_LIKE_COUNT_KEY = 'shuoshuo_like_counts'
+
+function getLikedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SHUOSHUO_LIKED_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function getLikeCounts(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(SHUOSHUO_LIKE_COUNT_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveLikeCounts(map: Record<string, number>) {
+  try { localStorage.setItem(SHUOSHUO_LIKE_COUNT_KEY, JSON.stringify(map)) } catch { /* ignore */ }
+}
 
 function groupByDate(list: Shuoshuo[]): [string, Shuoshuo[]][] {
   const map = new Map<string, Shuoshuo[]>()
@@ -16,6 +41,27 @@ function groupByDate(list: Shuoshuo[]): [string, Shuoshuo[]][] {
 
 function ShuoshuoItem({ item }: { item: Shuoshuo }) {
   const [open, setOpen] = useState(false)
+  const [liked, setLiked] = useState(() => getLikedSet().has(item.id))
+  const [likeCount, setLikeCount] = useState(() => getLikeCounts()[item.id] || 0)
+
+  function toggleLike() {
+    const set = getLikedSet()
+    const counts = getLikeCounts()
+    if (set.has(item.id)) {
+      set.delete(item.id)
+      counts[item.id] = Math.max(0, (counts[item.id] || 0) - 1)
+      setLiked(false)
+      setLikeCount(counts[item.id])
+    } else {
+      set.add(item.id)
+      counts[item.id] = (counts[item.id] || 0) + 1
+      setLiked(true)
+      setLikeCount(counts[item.id])
+    }
+    try { localStorage.setItem(SHUOSHUO_LIKED_KEY, JSON.stringify([...set])) } catch { /* ignore */ }
+    saveLikeCounts(counts)
+  }
+
   return (
     <div className="relative pl-7 pb-8 last:pb-0">
       {/* 时间轴圆点 */}
@@ -38,13 +84,25 @@ function ShuoshuoItem({ item }: { item: Shuoshuo }) {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[rgb(var(--text-secondary))] hover:text-accent transition-colors"
-        >
-          <MessageCircle size={14} /> {open ? '收起评论' : '评论'}
-        </button>
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={toggleLike}
+            className={`inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
+              liked ? 'text-pink-500' : 'text-[rgb(var(--text-secondary))] hover:text-pink-500'
+            }`}
+          >
+            <Heart size={14} className={liked ? 'fill-pink-500' : ''} />
+            {likeCount > 0 ? `${likeCount} 个赞` : '点赞'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[rgb(var(--text-secondary))] hover:text-accent transition-colors"
+          >
+            <MessageCircle size={14} /> {open ? '收起评论' : '评论'}
+          </button>
+        </div>
         {open && (
           <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/10">
             <CommentSection path={`/shuoshuo/${item.id}`} />

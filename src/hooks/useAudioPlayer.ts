@@ -7,6 +7,11 @@ import type { Song } from '@/types'
  * 放在模块作用域，保证路由跳转时音频不中断
  */
 let audioInstance: HTMLAudioElement | null = null
+/**
+ * 已加载的音频 src（模块级）
+ * 防止多个组件调用 useAudioPlayer 时重复设置 src 导致音乐重新播放
+ */
+let loadedSrc: string | null = null
 function getAudio(): HTMLAudioElement {
   if (!audioInstance) {
     audioInstance = new Audio()
@@ -45,8 +50,11 @@ export function useAudioPlayer() {
   const changingRef = useRef(false)
 
   /* ===== 切歌：仅设置 src，不在此处调 play() ===== */
+  /* 使用模块级 loadedSrc 追踪已加载的 src，避免多个组件调用时重复设置 src 导致重播 */
   useEffect(() => {
     if (!currentSong) return
+    if (loadedSrc === currentSong.src) return
+    loadedSrc = currentSong.src
     changingRef.current = true
     audio.src = currentSong.src
     // 浏览器处理完 src 变更后释放保护
@@ -56,18 +64,25 @@ export function useAudioPlayer() {
   }, [currentSong])
 
   /* ===== 播放/暂停控制（切歌后自动播放也走这里）===== */
+  /* 增加状态检查：避免组件重新挂载时重复调用 play()/pause() 导致音乐中断重播 */
   useEffect(() => {
     if (!currentSong) return
     if (isPlaying) {
-      audio.play().catch((e) => {
-        // AbortError 是 src 变化时的正常中断，忽略即可
-        if (e?.name !== 'AbortError') {
-          console.error('[audio] play() failed:', e?.name, e?.message)
-          setIsPlaying(false)
-        }
-      })
+      // 仅在音频实际暂停时才调用 play()，避免对正在播放的音频重复调用
+      if (audio.paused) {
+        audio.play().catch((e) => {
+          // AbortError 是 src 变化时的正常中断，忽略即可
+          if (e?.name !== 'AbortError') {
+            console.error('[audio] play() failed:', e?.name, e?.message)
+            setIsPlaying(false)
+          }
+        })
+      }
     } else {
-      audio.pause()
+      // 仅在音频实际播放时才调用 pause()
+      if (!audio.paused) {
+        audio.pause()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, currentSong])

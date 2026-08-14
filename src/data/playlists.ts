@@ -34,6 +34,7 @@ let cacheTime = 0
 /** Meting 返回的绝对地址 → 同源 local-api 代理路径（避免 302 跨域重定向导致音频加载失败） */
 function toSameOrigin(u: string): string {
   return String(u || '')
+    .replace(/^https?:\/\/api\.injahow\.cn\/meting\/\?server=netease&type=/, '/local-api/music-stream?type=')
     .replace(/^https?:\/\/47\.104\.189\.4\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
     .replace(/^\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
 }

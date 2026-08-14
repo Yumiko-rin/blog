@@ -30,7 +30,7 @@
   position: fixed;
   transform: translateY(0);
   transition: transform 0.3s ease-in-out, bottom 3s ease-in-out;
-  z-index: 1;
+  z-index: 9999;
 }
 
 #waifu-tips {
@@ -96,11 +96,14 @@
 
 #waifu-tool {
   color: #aaa;
-  opacity: 0;
+  opacity: 0.8;
   position: absolute;
   left: 10px;
   top: 50px;
   transition: opacity 1s;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 4px 2px;
 }
 
 #waifu:hover #waifu-tool {
@@ -109,19 +112,26 @@
 
 #waifu-tool span {
   display: block;
-  height: 40px;
+  height: 36px;
+  width: 36px;
   text-align: center;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #waifu-tool svg {
   fill: #7b8c9d;
   cursor: pointer;
-  height: 22px;
+  height: 24px;
+  width: 24px;
   transition: fill 0.3s;
 }
 
 #waifu-tool svg:hover {
-  fill: #0684bd; /* #34495e */
+  fill: #0684bd;
+  transform: scale(1.2);
 }
 
 @keyframes shake {

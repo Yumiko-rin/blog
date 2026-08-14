@@ -4,10 +4,16 @@
 // 若直接把 302 透传给浏览器，浏览器在 HTTPS 页面里请求 http mp3 会触发 mixed-content 被拦截。
 // 因此这里在服务端「跟随 302」并取回 mp3 字节，再以 HTTPS 原样回传给浏览器，
 // 浏览器全程只与同源 HTTPS 交互，彻底避免 mixed-content。
-const UPSTREAM = 'http://47.104.189.4/music'
+const UPSTREAM = 'https://api.injahow.cn/meting'
 
 export const onRequest: PagesFunction = async (context) => {
   const url = new URL(context.request.url)
+
+  // SPA 路由（无查询参数）直接放行，交给前端路由
+  if (!url.search) {
+    return context.next()
+  }
+
   const upstreamUrl = new URL(UPSTREAM + url.search)
 
   const reqHeaders = new Headers()

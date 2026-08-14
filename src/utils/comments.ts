@@ -57,7 +57,16 @@ const API = '/local-api/comments'
 const TOKEN_KEY = 'blog_comment_token'
 const IDENTITY_KEY = 'blog_comment_identity'
 const LOCAL_KEY = 'blog_comments_v2'
-const AVATAR_TOTAL = 24
+
+/* 头像池：混合多种风格，增加多样性 */
+const AVATAR_POOL: string[] = [
+  ...Array.from({ length: 24 }, (_, i) => `/avatars/dmoe_${String(i + 1).padStart(2, '0')}.jpg`),
+  ...Array.from({ length: 8 }, (_, i) => `/avatars/avatar_${String(i + 1).padStart(2, '0')}.png`),
+  '/avatars/real_15.jpg',
+  '/avatars/friend_ringo.png',
+  '/avatars/friend_yukina.png',
+]
+const AVATAR_TOTAL = AVATAR_POOL.length
 
 /* ----------------------- 用户会话（本地身份） ----------------------- */
 export interface UserSession {
@@ -148,8 +157,8 @@ function hash(s: string): number {
 
 /** 与服务端一致的确定性头像映射（同一昵称永远同一张头像） */
 export function avatarFor(seed: string): string {
-  const n = (hash(seed) % AVATAR_TOTAL) + 1
-  return `/avatars/dmoe_${String(n).padStart(2, '0')}.jpg`
+  const n = (hash(seed) % AVATAR_TOTAL)
+  return AVATAR_POOL[n]
 }
 
 /** 相对时间：刚刚 / x 分钟前 / x 小时前 / x 天前 / 具体日期 */

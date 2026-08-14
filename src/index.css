@@ -31,9 +31,12 @@
   * {
     border-color: rgba(0,0,0,0.06);
   }
+  html {
+    background-color: #0b0b12;
+  }
   body {
     font-family: 'Nunito', 'Noto Serif SC', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: rgb(var(--bg-primary));
+    background-color: transparent;
     color: rgb(var(--text-primary));
     transition: background-color 0.5s ease, color 0.5s ease;
     -webkit-font-smoothing: antialiased;

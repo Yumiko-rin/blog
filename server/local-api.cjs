@@ -29,7 +29,15 @@ const FRIENDS_APPROVED_FILE = path.join(DATA_DIR, 'friends-approved.json')
 const ADMIN_TOKEN = process.env.BLOG_ADMIN_TOKEN || 'kirameku-admin'
 // 博主邮箱：使用该邮箱登录评论的用户视为博主（可删任意评论、显示博主徽章）
 const ADMIN_MAIL = process.env.BLOG_ADMIN_MAIL || 'jaychou8421@gmail.com'
-const AVATAR_TOTAL = 24          // public/avatars/dmoe_01..24.jpg
+// 头像池：混合多种风格，增加多样性
+const AVATAR_POOL = [
+  ...Array.from({ length: 24 }, (_, i) => `/avatars/dmoe_${String(i + 1).padStart(2, '0')}.jpg`),
+  ...Array.from({ length: 8 }, (_, i) => `/avatars/avatar_${String(i + 1).padStart(2, '0')}.png`),
+  '/avatars/real_15.jpg',
+  '/avatars/friend_ringo.png',
+  '/avatars/friend_yukina.png',
+]
+const AVATAR_TOTAL = AVATAR_POOL.length          // 35 张头像
 const MAX_VISITORS = 20000       // 访客指纹上限，防止文件无限增长
 const KEEP_DAYS = 120            // 按天统计保留天数
 const NICK_MAX = 24
@@ -172,10 +180,10 @@ function loadComments() {
   return { comments: [] }
 }
 
-/** 头像：根据昵称+邮箱稳定映射到本地二次元头像池 */
+/** 头像：根据昵称+邮箱稳定映射到本地头像池 */
 function avatarFor(seed) {
-  const n = (parseInt(sha(seed).slice(0, 8), 16) % AVATAR_TOTAL) + 1
-  return `/avatars/dmoe_${String(n).padStart(2, '0')}.jpg`
+  const n = parseInt(sha(seed).slice(0, 8), 16) % AVATAR_TOTAL
+  return AVATAR_POOL[n]
 }
 
 function safeLink(v) {
