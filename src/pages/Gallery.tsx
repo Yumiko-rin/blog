@@ -115,11 +115,6 @@ const ALBUMS: Album[] = [
 
 // ========== 照片卡片（拍立得风格，与原站一致）==========
 
-// 低质量占位图（10px 极小缩略图，用于模糊背景）
-const getLqip = (url: string) => `${url}?imageView2/2/w/10/q/10`
-// 中等质量缩略图（600px 宽，用于网格展示，比原图小很多）
-const getThumb = (url: string) => `${url}?imageView2/2/w/600/q/75`
-
 function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
@@ -144,32 +139,23 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
       {/* 照片外框（拍立得白边） */}
       <div className="relative bg-white dark:bg-slate-800 p-2 pb-6 md:p-2.5 md:pb-8 rounded-sm shadow-lg dark:shadow-black/30 group-hover:shadow-2xl transition-shadow duration-300">
         <div className={`relative overflow-hidden rounded-[1px] ${isLandscape ? 'aspect-[4/3]' : 'aspect-[4/5]'}`}>
-          {/* LQIP 模糊占位图 */}
-          {!errored && (
-            <div
-              className="absolute inset-0 bg-cover bg-center bg-slate-200 dark:bg-slate-700"
-              style={{
-                backgroundImage: `url(${getLqip(photo.url)})`,
-                filter: 'blur(15px)',
-                transform: 'scale(1.1)',
-              }}
-            />
+          {/* CSS 渐变占位（不再用 LQIP，避免双倍请求） */}
+          {!loaded && !errored && (
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 animate-pulse" />
           )}
-          {/* 缩略图：加载完成后淡入，比原图小5-10倍 */}
+          {/* 图片：直接使用原图，加载完成后淡入 */}
           {!errored && (
             <img
-              src={getThumb(photo.url)}
+              src={photo.url}
               alt={photo.caption || '照片'}
               loading="lazy"
               decoding="async"
-              fetchPriority="low"
               onLoad={() => setLoaded(true)}
               onError={() => setErrored(true)}
               className="w-full h-full object-cover group-hover:scale-105"
               style={{
                 opacity: loaded ? 1 : 0,
-                filter: loaded ? 'blur(0px)' : 'blur(8px)',
-                transition: 'opacity 0.5s ease, filter 0.5s ease, transform 0.5s ease',
+                transition: 'opacity 0.5s ease, transform 0.5s ease',
               }}
             />
           )}
@@ -247,23 +233,15 @@ function AlbumCard({ album, isExpanded, onToggle, onPhotoClick }: {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
               <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg ring-1 ring-black/5 dark:ring-white/10">
-                {/* LQIP 模糊背景 */}
-                <div
-                  className="absolute inset-0 bg-cover bg-center bg-slate-300 dark:bg-slate-700"
-                  style={{
-                    backgroundImage: `url(${getLqip(photo.url)})`,
-                    filter: 'blur(15px)',
-                    transform: 'scale(1.1)',
-                  }}
-                />
-                {/* 缩略图 */}
+                {/* CSS 渐变占位 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-300 via-slate-400 to-slate-300 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700" />
+                {/* 图片 */}
                 <img
-                  src={getThumb(photo.url)}
+                  src={photo.url}
                   alt={photo.caption || album.title}
                   className="relative w-full h-full object-cover"
                   loading="lazy"
                   decoding="async"
-                  fetchPriority="high"
                   onError={(e) => { e.currentTarget.style.opacity = '0' }}
                 />
               </div>
@@ -412,8 +390,7 @@ function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
           >
             <img src={photo.url} alt={photo.caption || '照片'}
               decoding="async"
-              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl"
-              onError={(e) => { e.currentTarget.src = getThumb(photo.url) }} />
+              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
             {photo.caption && (
               <div className="absolute -bottom-10 left-0 right-0 text-center">
                 <span className="text-sm text-white/70 font-serif italic">{photo.caption}</span>
