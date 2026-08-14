@@ -22,6 +22,9 @@ const PLAYLIST_SOURCES = [
   { id: 'netease-9564103735', apiId: 9564103735, name: '二次元日漫精选 · 2024新番OP/ED' },
   { id: 'netease-8832161095', apiId: 8832161095, name: '二次元日漫精选 · 2023新番OP/ED' },
   { id: 'netease-7747893098', apiId: 7747893098, name: '经典日漫金曲 · 评论过万' },
+  { id: 'netease-440999611', apiId: 440999611, name: '那些好听的日漫主题曲' },
+  { id: 'netease-2733943066', apiId: 2733943066, name: '日系高燃动漫神曲' },
+  { id: 'netease-2394764121', apiId: 2394764121, name: '宫崎骏 & 久石让' },
 ]
 
 const CACHE_DURATION = 5 * 60 * 1000 // 5 分钟
@@ -60,9 +63,12 @@ function mapSong(raw: Record<string, any>): Song {
   }
 }
 
-/** 把单个线上歌单映射为一个 Playlist */
+/** 每个歌单在列表中展示的歌曲上限（避免列表过长） */
+export const PLAYLIST_SONG_LIMIT = 10
+
+/** 把单个线上歌单映射为一个 Playlist（歌曲数限制为 PLAYLIST_SONG_LIMIT） */
 function toPlaylist(raw: Record<string, any>[], source: { id: string; name: string }): Playlist {
-  const songs = raw.map(mapSong)
+  const songs = raw.slice(0, PLAYLIST_SONG_LIMIT).map(mapSong)
   return {
     id: source.id,
     name: source.name,
@@ -79,22 +85,33 @@ export const PLAYLISTS: Playlist[] = FALLBACK_PLAYLISTS
 export const ALL_SONGS: Song[] = FALLBACK_PLAYLISTS.flatMap((p) => p.songs)
 
 /**
- * 并行加载所有歌单：优先线上接口（返回完整歌曲列表），单个失败不影响其它；
- * 全部失败则回退到内嵌多歌单兜底。
+ * 并行加载所有歌单：优先线上接口（每个歌单取 PLAYLIST_SONG_LIMIT 首，跨歌单去重），
+ * 单个失败不影响其它；全部失败则回退到内嵌多歌单兜底。
  */
 export async function loadPlaylists(): Promise<Playlist[]> {
   if (cachedPlaylists && Date.now() - cacheTime < CACHE_DURATION) {
     return cachedPlaylists
   }
   try {
+    // 跨歌单去重：同一首歌（neteaseId）只保留在第一个出现的歌单中
+    const seen = new Set<number>()
     const results = await Promise.all(
       PLAYLIST_SOURCES.map(async (src) => {
         const res = await fetch(`/music/?type=playlist&id=${src.apiId}`)
         if (!res.ok) throw new Error(`bad status ${res.status}`)
         const raw = await res.json()
         const list = Array.isArray(raw) ? raw : []
-        if (list.length === 0) throw new Error('empty')
-        return toPlaylist(list, src)
+        const picked: Record<string, any>[] = []
+        for (const row of list) {
+          if (picked.length >= PLAYLIST_SONG_LIMIT) break
+          const url = toSameOrigin(row.url || '')
+          const nid = extractNeteaseId(row, url)
+          if (nid !== undefined && seen.has(nid)) continue
+          if (nid !== undefined) seen.add(nid)
+          picked.push(row)
+        }
+        if (picked.length === 0) throw new Error('empty')
+        return toPlaylist(picked, src)
       })
     )
     if (results.length === 0) throw new Error('none')

@@ -3,27 +3,63 @@
  * --------------------------------------------------
  * 用法：node scripts/gen-playlists.cjs
  *
- * 抓取 3 个网易云日漫歌单（自建 Meting-API 47.104.189.4），去重后生成
- * FALLBACK_PLAYLISTS（相对路径 /music/...，运行时按 lrcUrl 拉取歌词）。
- * 线上接口不可用时，作为音乐模块的离线兜底。
+ * 抓取 6 个网易云日漫歌单（自建 Meting-API 47.104.189.4）：
+ *  - 逐首验证可完整播放（Node fetch 跟随 302 到网易云 CDN，检查字节可读）
+ *  - 每歌单取前 10 首可播放歌曲
+ *  - 歌单间全局去重（neteaseId）
+ * 生成 FALLBACK_PLAYLISTS（相对路径 /music/...，运行时按 lrcUrl 拉取歌词）。
  */
-const http = require('http')
-
 const API = 'http://47.104.189.4/music/'
+const MAX_PER_PLAYLIST = 10 // 每歌单歌曲数
+const MAX_TRY_PER_PLAYLIST = 60 // 每歌单最多尝试验证的歌曲数（跳过不可播/重复）
+
 const SOURCES = [
   { apiId: 9564103735, id: 'netease-9564103735', name: '二次元日漫精选 · 2024新番OP/ED', desc: '2024 年新番动画主题曲合集（网易云歌单 9564103735）' },
   { apiId: 8832161095, id: 'netease-8832161095', name: '二次元日漫精选 · 2023新番OP/ED', desc: '2023 年新番动画主题曲合集（网易云歌单 8832161095）' },
   { apiId: 7747893098, id: 'netease-7747893098', name: '经典日漫金曲 · 评论过万', desc: '评论过万的经典日漫歌曲（网易云歌单 7747893098）' },
+  { apiId: 440999611, id: 'netease-440999611', name: '那些好听的日漫主题曲', desc: '1300 万播放的日漫主题曲精选（网易云歌单 440999611）' },
+  { apiId: 2733943066, id: 'netease-2733943066', name: '日系高燃动漫神曲', desc: '高燃向动漫神曲合集（网易云歌单 2733943066）' },
+  { apiId: 2394764121, id: 'netease-2394764121', name: '宫崎骏 & 久石让', desc: '宫崎骏动画主题曲精选（网易云歌单 2394764121）' },
 ]
 
-function get(url) {
-  return new Promise((resolve, reject) => {
-    http.get(url, (r) => {
-      let d = ''
-      r.on('data', (c) => (d += c))
-      r.on('end', () => resolve(d))
-    }).on('error', reject)
-  })
+/** 带超时的 fetch */
+async function fetchJson(url, ms = 15000) {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), ms)
+  try {
+    const res = await fetch(url, { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json()
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+/** 验证歌曲可完整播放：跟随 302 到 CDN，确认 Content-Length 且能读到字节 */
+async function checkPlayable(neteaseId) {
+  try {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), 15000)
+    const res = await fetch(`${API}?server=netease&type=url&id=${neteaseId}`, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+    })
+    if (!res.ok) return false
+    const len = Number(res.headers.get('content-length') || 0)
+    // 读前 96KB 验证流式可读
+    const reader = res.body.getReader()
+    let got = 0
+    while (got < 96 * 1024) {
+      const { done, value } = await reader.read()
+      if (done) break
+      got += value.length
+    }
+    reader.cancel().catch(() => {})
+    clearTimeout(t)
+    return got > 50000 // 至少读到 50KB 视为可播放
+  } catch {
+    return false
+  }
 }
 
 /** Meting 绝对地址 → 同源相对路径 */
@@ -31,7 +67,6 @@ function sameOrigin(u) {
   return String(u || '').replace(/^https?:\/\/47\.104\.189\.4\/music/, '/music')
 }
 
-/** 从播放地址提取网易云歌曲 ID */
 function neteaseIdOf(raw) {
   const m = String(raw.url || '').match(/[?&]id=(\d+)/)
   if (m) return Number(m[1])
@@ -39,23 +74,18 @@ function neteaseIdOf(raw) {
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-/** 生成一首歌的 TS 文本（JSON.stringify 转义，杜绝引号 bug） */
-function songToTs(raw) {
-  const nid = neteaseIdOf(raw)
-  if (!nid) return null
-  const src = sameOrigin(raw.url)
-  const cover = sameOrigin(raw.pic)
-  const lrc = sameOrigin(raw.lrc)
+/** 生成一首歌的 TS 文本 */
+function songToTs(raw, nid) {
   const s = {
     id: `netease-${nid}`,
     name: String(raw.name || '未知歌曲'),
     artist: String(raw.artist || '未知歌手'),
     album: '',
-    cover,
-    src,
+    cover: sameOrigin(raw.pic),
+    src: sameOrigin(raw.url),
     duration: 0,
     neteaseId: nid,
-    lrcUrl: lrc,
+    lrcUrl: sameOrigin(raw.lrc),
     lyric: [],
   }
   return `      {\n${Object.entries(s)
@@ -64,27 +94,37 @@ function songToTs(raw) {
 }
 
 async function main() {
-  const seen = new Set()
+  const seen = new Set() // 全局去重
   const playlists = []
   for (const src of SOURCES) {
-    const raw = JSON.parse(await get(`${API}?type=playlist&id=${src.apiId}`))
-    const rows = Array.isArray(raw) ? raw : []
+    const rows = await fetchJson(`${API}?type=playlist&id=${src.apiId}`)
+    const list = Array.isArray(rows) ? rows : []
     const songs = []
-    for (const row of rows) {
+    let checked = 0
+    for (const row of list) {
+      if (songs.length >= MAX_PER_PLAYLIST) break
+      if (checked >= MAX_TRY_PER_PLAYLIST) break
       const nid = neteaseIdOf(row)
       if (!nid || seen.has(nid)) continue
+      checked++
+      process.stdout.write(`  [${src.apiId}] 验证 ${nid} ${String(row.name || '').slice(0, 12)}... `)
+      const ok = await checkPlayable(nid)
+      if (!ok) {
+        console.log('✗ 不可播，跳过')
+        continue
+      }
       seen.add(nid)
-      const ts = songToTs(row)
-      if (ts) songs.push(ts)
+      songs.push(songToTs(row, nid))
+      console.log('✓')
     }
     playlists.push({
       id: src.id,
       name: src.name,
-      cover: sameOrigin(rows[0]?.pic || ''),
+      cover: sameOrigin(list[0]?.pic || ''),
       description: src.desc,
       songs,
     })
-    console.log(`${src.id}: ${songs.length} 首`)
+    console.log(`${src.name}: ${songs.length} 首`)
   }
   const total = playlists.reduce((n, p) => n + p.songs.length, 0)
   const body = playlists
@@ -94,7 +134,7 @@ async function main() {
     .join(',\n')
   const content = `// AUTO-GENERATED by scripts/gen-playlists.cjs —— 多歌单兜底数据
 // 数据源：自建 Meting-API（47.104.189.4），运行时通过 lrcUrl 按需拉取歌词。
-// 当线上接口不可用时，作为音乐模块的离线兜底（仍含多个歌单与大量歌曲）。
+// 每歌单 10 首（已验证可完整播放），歌单间不重复。线上接口不可用时作为离线兜底。
 import type { Playlist } from '@/types'
 
 export const FALLBACK_PLAYLISTS: Playlist[] = [
@@ -102,7 +142,7 @@ ${body}
 ]
 `
   require('fs').writeFileSync('src/data/livePlaylist.ts', content, 'utf-8')
-  console.log(`共 ${total} 首（去重后），已写入 src/data/livePlaylist.ts`)
+  console.log(`\n共 ${total} 首（${playlists.length} 歌单），已写入 src/data/livePlaylist.ts`)
 }
 
 main().catch((e) => {
