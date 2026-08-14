@@ -22,15 +22,13 @@ interface GitHubRepo {
 }
 
 interface AnimeItem {
-  mal_id: number
+  id: number
   title: string
   title_japanese?: string
-  images: { jpg: { large_image_url: string; image_url: string } }
+  cover: string
   score?: number
   episodes?: number
-  genres?: { name: string }[]
-  studios?: { name: string }[]
-  synopsis?: string
+  genres?: string[]
   airing?: boolean
   type?: string
 }
@@ -47,18 +45,18 @@ interface MyAnime {
 }
 
 const FALLBACK_SEASONAL: AnimeItem[] = [
-  { mal_id: 52991, title: '葬送的芙莉莲', title_japanese: '葬送のフリーレン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg' } }, score: 9.0, episodes: 28, type: 'TV', airing: true, genres: [{ name: 'Adventure' }, { name: 'Fantasy' }] },
-  { mal_id: 54492, title: '药屋少女的呢喃', title_japanese: '薬屋のひとりごと', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg' } }, score: 8.8, episodes: 24, type: 'TV', airing: true, genres: [{ name: 'Mystery' }, { name: 'Drama' }] },
-  { mal_id: 50602, title: '间谍过家家 第二季', title_japanese: 'SPY×FAMILY Season 2', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg' } }, score: 8.5, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Comedy' }, { name: 'Action' }] },
-  { mal_id: 51009, title: '咒术回战 第二季', title_japanese: '呪術廻戦 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg' } }, score: 8.7, episodes: 23, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Supernatural' }] },
-  { mal_id: 33352, title: '紫罗兰永恒花园', title_japanese: 'ヴァイオレット・エヴァーガーデン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg' } }, score: 8.9, episodes: 13, type: 'TV', airing: false, genres: [{ name: 'Drama' }, { name: 'Fantasy' }] },
-  { mal_id: 59978, title: '葬送的芙莉莲 第二季', title_japanese: '葬送のフリーレン 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg' } }, score: 9.0, episodes: 24, type: 'TV', airing: true, genres: [{ name: 'Adventure' }, { name: 'Fantasy' }] },
-  { mal_id: 57906, title: 'Dan Da Dan', title_japanese: 'ダンダダン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg' } }, score: 8.6, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Comedy' }, { name: 'Supernatural' }] },
-  { mal_id: 52204, title: '我独自升级', title_japanese: '俺だけレベルアップな件', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg' } }, score: 8.3, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
-  { mal_id: 52588, title: '怪兽8号', title_japanese: '怪獣8号', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1370/140362l.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1370/140362.jpg' } }, score: 8.2, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Sci-Fi' }] },
-  { mal_id: 53223, title: '青之箱', title_japanese: 'アオのハコ', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg' } }, score: 8.2, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Romance' }, { name: 'Sports' }] },
-  { mal_id: 52743, title: 'Delicious in Dungeon', title_japanese: 'ダンジョン飯', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg' } }, score: 8.4, episodes: 24, type: 'TV', airing: false, genres: [{ name: 'Adventure' }, { name: 'Comedy' }] },
-  { mal_id: 55701, title: '神之塔 第二季', title_japanese: '神之塔 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1565/142711l.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1565/142711.jpg' } }, score: 8.0, episodes: 26, type: 'TV', airing: true, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
+  { id: 154587, title: '葬送的芙莉莲', title_japanese: '葬送のフリーレン', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx154587-qQTzQnEJJ3oB.jpg', score: 9.1, episodes: 28, type: 'TV', airing: false, genres: ['Adventure', 'Fantasy'] },
+  { id: 161645, title: '药屋少女的呢喃', title_japanese: '薬屋のひとりごと', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx161645-QLbzHXiYRgV2.jpg', score: 8.8, episodes: 24, type: 'TV', airing: false, genres: ['Mystery', 'Drama'] },
+  { id: 142838, title: '间谍过家家', title_japanese: 'SPY×FAMILY', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx142838-26JrqcFU1ljB.jpg', score: 8.1, episodes: 13, type: 'TV', airing: false, genres: ['Comedy', 'Action'] },
+  { id: 145064, title: '咒术回战 第二季', title_japanese: '呪術廻戦 第2期', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx145064-hSNRJM03pvv1.jpg', score: 8.6, episodes: 23, type: 'TV', airing: false, genres: ['Action', 'Supernatural'] },
+  { id: 21827, title: '紫罗兰永恒花园', title_japanese: 'ヴァイオレット・エヴァーガーデン', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21827-ubzq619ZA2E9.png', score: 8.5, episodes: 13, type: 'TV', airing: false, genres: ['Drama', 'Fantasy'] },
+  { id: 182255, title: '葬送的芙莉莲 第二季', title_japanese: '葬送のフリーレン 第2期', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx182255-butzrqd4I0aC.jpg', score: 8.8, episodes: 10, type: 'TV', airing: true, genres: ['Adventure', 'Fantasy'] },
+  { id: 153288, title: '怪兽8号', title_japanese: '怪獣8号', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx153288-25FBfFJzEQ5O.jpg', score: 8.1, episodes: 12, type: 'TV', airing: true, genres: ['Action', 'Sci-Fi'] },
+  { id: 185874, title: 'BLEACH 千年血战篇', title_japanese: 'BLEACH 千年血戦篇', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx185874-aU3e6tBT6wwA.jpg', score: 8.8, episodes: 10, type: 'TV', airing: true, genres: ['Action', 'Adventure'] },
+  { id: 178789, title: '无职转生 III', title_japanese: '無職転生 III', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx178789-hNXjKFzUq7mk.jpg', score: 8.4, episodes: 14, type: 'TV', airing: true, genres: ['Adventure', 'Drama'] },
+  { id: 196187, title: '便利店角落的你', title_japanese: 'スーパーの裏でヤニ吸うふたり', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx196187-0dgFi2CPp3xn.jpg', score: 8.2, episodes: 12, type: 'TV', airing: true, genres: ['Comedy', 'Romance'] },
+  { id: 199111, title: '碧蓝之海 第三季', title_japanese: 'ぐらんぶる 3期', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx199111-gBSuBG61ElcW.jpg', score: 8.1, episodes: 12, type: 'TV', airing: true, genres: ['Comedy', 'Slice of Life'] },
+  { id: 135865, title: '幼女战记 II', title_japanese: '幼女戦記 II', cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx135865-T7XIPMAbqcxN.png', score: 8.1, episodes: 12, type: 'TV', airing: true, genres: ['Action', 'Fantasy'] },
 ]
 
 export default function My() {
@@ -71,7 +69,6 @@ export default function My() {
   const [loadingAnime, setLoadingAnime] = useState(true)
   const [animeFilter, setAnimeFilter] = useState<'all' | 'tv' | 'movie' | 'ova'>('all')
   const [failedCovers, setFailedCovers] = useState<Set<number>>(new Set())
-  const [retryCovers, setRetryCovers] = useState<Set<number>>(new Set())
   // 文章与友链计数：静态数据作为初始值，异步加载合并后台发布的数据
   const [articles, setArticles] = useState(ARTICLES)
   const [friends, setFriends] = useState(FRIENDS)
@@ -124,20 +121,35 @@ export default function My() {
       try {
         const now = new Date()
         const month = now.getMonth() + 1
-        let season = 'winter'
-        if (month >= 4 && month <= 6) season = 'spring'
-        else if (month >= 7 && month <= 9) season = 'summer'
-        else if (month >= 10 && month <= 12) season = 'fall'
+        let season = 'WINTER'
+        if (month >= 4 && month <= 6) season = 'SPRING'
+        else if (month >= 7 && month <= 9) season = 'SUMMER'
+        else if (month >= 10 && month <= 12) season = 'FALL'
         const year = now.getFullYear()
+        const query = `query{Page(page:1,perPage:16){media(type:ANIME,season:${season},seasonYear:${year},sort:SCORE_DESC,isAdult:false){id title{romaji native} coverImage{large} averageScore episodes type status genres}}}`
         const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 6000)
-        const res = await fetch(`https://api.jikan.moe/v4/seasons/${year}/${season}?limit=24&order_by=score&sort=desc`, {
+        const timeout = setTimeout(() => controller.abort(), 8000)
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
           signal: controller.signal,
         })
         clearTimeout(timeout)
-        const data = await res.json()
-        if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
-          setSeasonalAnime(data.data)
+        const json = await res.json()
+        const media = json?.data?.Page?.media
+        if (media && Array.isArray(media) && media.length > 0) {
+          setSeasonalAnime(media.map((a: any) => ({
+            id: a.id,
+            title: a.title?.romaji || a.title?.native || '未知',
+            title_japanese: a.title?.native,
+            cover: a.coverImage?.large || '',
+            score: a.averageScore ? a.averageScore / 10 : undefined,
+            episodes: a.episodes || undefined,
+            type: a.type || 'TV',
+            airing: a.status === 'RELEASING',
+            genres: (a.genres || []).slice(0, 3),
+          })))
         } else {
           setSeasonalAnime(FALLBACK_SEASONAL)
         }
@@ -163,27 +175,27 @@ export default function My() {
     {
       title: '葬送的芙莉莲',
       titleJp: '葬送のフリーレン',
-      cover: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg',
-      score: 9.0,
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx154587-qQTzQnEJJ3oB.jpg',
+      score: 9.1,
       status: 'watching',
       progress: '28/28',
       genres: ['冒险', '奇幻', '治愈'],
       comment: '看完后对时间和生命有了新的理解，神作。',
     },
     {
-      title: '间谍过家家 第二季',
-      titleJp: 'SPY×FAMILY Season 2',
-      cover: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg',
-      score: 8.5,
+      title: '间谍过家家',
+      titleJp: 'SPY×FAMILY',
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx142838-26JrqcFU1ljB.jpg',
+      score: 8.1,
       status: 'watching',
-      progress: '12/12',
+      progress: '13/13',
       genres: ['喜剧', '日常', '治愈'],
       comment: '阿尼亚太可爱了！每集都在笑。',
     },
     {
       title: '药屋少女的呢喃',
       titleJp: '薬屋のひとりごと',
-      cover: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg',
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx161645-QLbzHXiYRgV2.jpg',
       score: 8.8,
       status: 'watching',
       progress: '24/24',
@@ -193,8 +205,8 @@ export default function My() {
     {
       title: '咒术回战 第二季',
       titleJp: '呪術廻戦 第2期',
-      cover: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg',
-      score: 8.7,
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx145064-hSNRJM03pvv1.jpg',
+      score: 8.6,
       status: 'completed',
       progress: '23/23',
       genres: ['战斗', '超自然', '热血'],
@@ -203,8 +215,8 @@ export default function My() {
     {
       title: '紫罗兰永恒花园',
       titleJp: 'ヴァイオレット・エヴァーガーデン',
-      cover: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg',
-      score: 8.9,
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx21827-ubzq619ZA2E9.png',
+      score: 8.5,
       status: 'completed',
       progress: '13/13',
       genres: ['治愈', '剧情', '感人'],
@@ -213,10 +225,10 @@ export default function My() {
     {
       title: '葬送的芙莉莲 第二季',
       titleJp: '葬送のフリーレン 第2期',
-      cover: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg',
-      score: 9.0,
+      cover: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx182255-butzrqd4I0aC.jpg',
+      score: 8.8,
       status: 'planned',
-      progress: '0/24',
+      progress: '0/10',
       genres: ['冒险', '奇幻', '治愈'],
       comment: '期待已久，准备补番！',
     },
@@ -435,27 +447,19 @@ export default function My() {
               ) : filteredSeasonal.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {filteredSeasonal.slice(0, 16).map((anime) => (
-                    <div key={anime.mal_id} className="card rounded-xl overflow-hidden hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 group hover:-translate-y-1">
+                    <div key={anime.id} className="card rounded-xl overflow-hidden hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 group hover:-translate-y-1">
                       <div className="relative overflow-hidden">
-                        {failedCovers.has(anime.mal_id) ? (
+                        {failedCovers.has(anime.id) ? (
                           <div className="w-full aspect-[3/4] flex items-center justify-center bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-indigo-500/40 group-hover:scale-105 transition-transform duration-500">
                             <span className="text-white/90 text-sm font-bold text-center px-3 line-clamp-3 drop-shadow-md">{anime.title}</span>
                           </div>
                         ) : (
                           <img
-                            src={retryCovers.has(anime.mal_id)
-                              ? anime.images?.jpg?.image_url
-                              : (anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url)}
+                            src={anime.cover}
                             alt={anime.title}
                             className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-500"
                             loading="lazy"
-                            onError={() => {
-                              if (retryCovers.has(anime.mal_id)) {
-                                setFailedCovers(prev => new Set(prev).add(anime.mal_id))
-                              } else {
-                                setRetryCovers(prev => new Set(prev).add(anime.mal_id))
-                              }
-                            }}
+                            onError={() => setFailedCovers(prev => new Set(prev).add(anime.id))}
                           />
                         )}
                         {anime.airing && (
@@ -486,7 +490,7 @@ export default function My() {
                         {anime.genres && anime.genres.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {anime.genres.slice(0, 2).map(g => (
-                              <span key={g.name} className="text-[9px] text-gray-400">{g.name}</span>
+                              <span key={g} className="text-[9px] text-gray-400">{g}</span>
                             ))}
                           </div>
                         )}
