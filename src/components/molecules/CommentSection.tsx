@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, ThumbsUp, Reply, Trash2, Smile,
-  ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, Mail, Lock, LogIn, UserPlus, LogOut, X,
+  ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, LogOut,
 } from 'lucide-react'
 import {
   listComments, createComment, likeComment, deleteComment,
   readIdentity, saveIdentity, avatarFor, relativeTime,
   getSession, clearSession, isAdminUser,
-  walineLogin, walineRegister, requestWalineCode,
   type CommentNode, type CommentPage, type Identity, type SortKey,
 } from '@/utils/comments'
 import { renderCommentContent, EMOJI_LIST } from '@/utils/commentMarkdown'
@@ -391,81 +390,8 @@ export function CommentSection({ path }: { path: string }) {
   const [pageNo, setPageNo] = useState(1)
   const [replyingTo, setReplyingTo] = useState<CommentNode | null>(null)
   const [notice, setNotice] = useState('')
-  // 当前登录会话（登录/注册成功后本页立即生效，无需跳转）
+  // 当前登录会话（通过 /login 页面设置身份）
   const [session, setSession] = useState(() => getSession())
-
-  /* ---------- 站内登录/注册（Waline 邮箱验证码，完成后立即返回，不跳转） ---------- */
-  const [authMode, setAuthMode] = useState<'login' | 'register' | null>(null)
-  const [authMail, setAuthMail] = useState('')
-  const [authNick, setAuthNick] = useState('')
-  const [authCode, setAuthCode] = useState('')
-  const [authBusy, setAuthBusy] = useState(false)
-  const [authError, setAuthError] = useState('')
-  const [codeCountdown, setCodeCountdown] = useState(0)
-  const codeTimer = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const handleSendCode = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authMail.trim())) {
-      setAuthError('邮箱格式不正确')
-      return
-    }
-    setAuthBusy(true)
-    setAuthError('')
-    const r = await requestWalineCode(authMail.trim())
-    setAuthBusy(false)
-    if (!r.ok) {
-      setAuthError(r.error || '验证码发送失败，请检查邮箱')
-      return
-    }
-    setCodeCountdown(60)
-    if (codeTimer.current) clearInterval(codeTimer.current)
-    codeTimer.current = setInterval(() => {
-      setCodeCountdown((c) => {
-        if (c <= 1) {
-          if (codeTimer.current) clearInterval(codeTimer.current)
-          return 0
-        }
-        return c - 1
-      })
-    }, 1000)
-    flash('验证码已发送至邮箱，请查收')
-  }
-
-  const handleAuthSubmit = async () => {
-    const m = authMail.trim()
-    if (!m || !authCode.trim()) {
-      setAuthError('请填写邮箱和验证码')
-      return
-    }
-    if (authMode === 'register' && !authNick.trim()) {
-      setAuthError('请填写昵称')
-      return
-    }
-    setAuthBusy(true)
-    setAuthError('')
-    const r =
-      authMode === 'login'
-        ? await walineLogin(m, authCode.trim())
-        : await walineRegister(authNick.trim(), m, authCode.trim())
-    setAuthBusy(false)
-    if (!r.ok) {
-      setAuthError(r.error || (authMode === 'login' ? '登录失败，请检查验证码' : '注册失败'))
-      return
-    }
-    // 成功：立即关闭弹窗并刷新会话/评论 —— 全程不离开博客
-    setAuthMode(null)
-    setAuthMail('')
-    setAuthNick('')
-    setAuthCode('')
-    setSession(getSession())
-    flash(authMode === 'login' ? '登录成功，欢迎回来' : '注册成功，已自动登录')
-    load(pageNo, sort)
-  }
-
-  const switchAuthMode = () => {
-    setAuthError('')
-    setAuthMode((m) => (m === 'login' ? 'register' : 'login'))
-  }
 
   const load = async (p = pageNo, s = sort) => {
     setLoading(true)

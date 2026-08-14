@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useMemo, type MouseEvent, type ReactElemen
 import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, FileText, ListMusic } from 'lucide-react'
 import { useMusicStore } from '@/store/useMusicStore'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
+import { PlaylistPanel } from '@/components/music/PlaylistPanel'
 import { formatTime } from '@/utils/format'
 import { playClickSound } from '@/utils/sounds'
-import type { PlayMode } from '@/types'
+import type { PlayMode, Song } from '@/types'
 
 type TabType = 'lyrics' | 'playlist'
 
@@ -41,9 +42,6 @@ export default function Music() {
 
   const { handlePrev, handleNext, seek } = useAudioPlayer()
 
-  const songs = useMemo(() => playlists.flatMap((p) => p.songs), [playlists])
-
-  // 歌词解析（ms -> s）
   const allLyrics = useMemo(
     () => (currentSong?.lyric || []).map(([t, text]) => ({ time: t / 1000, text })),
     [currentSong]
@@ -76,12 +74,9 @@ export default function Music() {
     seek(pct * (duration || 0))
   }
 
-  const playSongByIndex = (index: number) => {
-    const song = songs[index]
-    if (!song) return
-    const pl = playlists.find((p) => p.songs.some((s) => s.id === song.id))
+  const playSong = (song: Song, playlistId: string | number) => {
     playClickSound()
-    setCurrentSong(song, pl?.id)
+    setCurrentSong(song, playlistId)
   }
 
   const toggleMute = () => {
@@ -89,7 +84,7 @@ export default function Music() {
     setVolume(isMuted ? 0.7 : 0)
   }
 
-  if (!songs.length) {
+  if (!playlists.length) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-6 md:py-12">
         <div className="rounded-2xl md:rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-xl p-6">
@@ -286,51 +281,12 @@ export default function Music() {
             )}
           </div>
         ) : (
-          <div className="space-y-1">
-            {songs.map((song, index) => {
-              const isActive = song.id === currentSong?.id
-              return (
-                <button
-                  type="button"
-                  key={`${song.id}-${index}`}
-                  onClick={() => playSongByIndex(index)}
-                  className={`w-full flex items-center gap-2 md:gap-3 px-2 py-2 md:px-3 md:py-3 rounded-lg md:rounded-xl transition-all duration-300 text-left group ${
-                    isActive ? 'bg-indigo-500/10 dark:bg-indigo-500/20 shadow-sm' : 'hover:bg-white/40 dark:hover:bg-slate-700/40 hover:shadow-sm hover:scale-[1.005]'
-                  }`}
-                >
-                  <div className="w-5 md:w-6 text-center shrink-0">
-                    {isActive && isPlaying ? (
-                      <div className="flex items-end justify-center gap-[2px] h-4">
-                        {[0, 1, 2].map((e) => (
-                          <div key={e} className="w-1 bg-indigo-500 rounded-t-sm animate-pulse" style={{ height: `${6 + 4 * e}px`, animationDelay: `${150 * e}ms` }} />
-                        ))}
-                      </div>
-                    ) : (
-                      <span className={`text-[10px] md:text-xs font-bold tabular-nums ${isActive ? 'text-indigo-500' : 'text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-white'}`}>
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg overflow-hidden shrink-0 shadow-sm">
-                    <img src={song.cover} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-xs md:text-sm font-bold truncate ${isActive ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-100'}`}>
-                      {song.name}
-                    </div>
-                    <div className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
-                      {song.artist}
-                    </div>
-                  </div>
-                  {isActive && (
-                    <div className="text-indigo-500 shrink-0">
-                      {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <PlaylistPanel
+            playlists={playlists}
+            currentSongId={currentSong?.id ?? null}
+            isPlaying={isPlaying}
+            onPlaySong={playSong}
+          />
         )}
       </div>
     </div>

@@ -31,6 +31,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    // 本机 Windows 环境下 esbuild/terser minify 均会卡死（rollup render 阶段），
+    // 统一用 --minify false 构建（gzip 后体积可接受），见 package.json build 脚本
+  },
   server: {
     port: 5173,
     open: true,

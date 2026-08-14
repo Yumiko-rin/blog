@@ -274,19 +274,55 @@ function BilibiliHotTool() {
   return (<div className="p-3 space-y-1 overflow-y-auto h-full">{items.length === 0 ? <p className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无数据</p> : items.slice(0, 20).map((item: any, i: number) => (<div key={i} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-[rgb(var(--bg-secondary))] transition-colors cursor-pointer"><span className={`w-5 text-center text-xs font-bold ${i < 3 ? 'text-sky-500' : 'text-[rgb(var(--text-secondary))]'}`}>{item.index || i + 1}</span><span className="text-sm text-[rgb(var(--text-primary))] flex-1 truncate">{item.title}</span>{item.hot_value && <span className="text-[10px] text-sky-400 shrink-0">{item.hot_value}</span>}</div>))}</div>)
 }
 
+// GitHub 语言色标
+const LANG_COLORS: Record<string, string> = {
+  JavaScript: '#f1e05a', TypeScript: '#3178c6', Python: '#3572A5', Java: '#b07219',
+  'C++': '#f34b7d', C: '#555555', 'C#': '#178600', Go: '#00ADD8', Rust: '#dea584',
+  Ruby: '#701516', PHP: '#4F5D95', Swift: '#F05138', Kotlin: '#A97BFF', Dart: '#00B4AB',
+  HTML: '#e34c26', CSS: '#563d7c', Shell: '#89e051', Vue: '#41b883', Lua: '#000080',
+  Scala: '#c22d40', R: '#198CE7', Perl: '#0298c3', Haskell: '#5e5086', Elixir: '#6e4a7e',
+  Clojure: '#db5855', OCaml: '#3be133', Zig: '#ec915c', Nim: '#ffc200', Julia: '#a270ba',
+}
+const formatCount = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
+
 function GitHubUserTool() {
-  const [username, setUsername] = useState(''); const [user, setUser] = useState<any>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null)
-  const search = async () => {
-    if (!username.trim()) return
-    setLoading(true); setError(null); setUser(null)
+  const [username, setUsername] = useState('')
+  const [user, setUser] = useState<any>(null)
+  const [topRepos, setTopRepos] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingRepos, setLoadingRepos] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [history, setHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('github-user-history') || '[]') } catch { return [] }
+  })
+
+  const saveHistory = (name: string) => {
+    const updated = [name, ...history.filter(h => h !== name)].slice(0, 6)
+    setHistory(updated)
+    localStorage.setItem('github-user-history', JSON.stringify(updated))
+  }
+
+  const search = async (name?: string) => {
+    const q = (name ?? username).trim()
+    if (!q) return
+    if (name) setUsername(name)
+    setLoading(true); setError(null); setUser(null); setTopRepos([])
     try {
-      const r = await fetch(`https://api.github.com/users/${username.trim()}`)
+      const r = await fetch(`https://api.github.com/users/${q}`)
       if (r.ok) {
-        setUser(await r.json())
+        const data = await r.json()
+        setUser(data)
+        saveHistory(data.login)
+        setLoadingRepos(true)
+        try {
+          const rr = await fetch(`https://api.github.com/users/${data.login}/repos?sort=stars&per_page=5`)
+          if (rr.ok) setTopRepos((await rr.json()).filter((repo: any) => !repo.fork))
+        } catch {}
+        setLoadingRepos(false)
       } else if (r.status === 404) {
         setError('未找到该用户，请检查用户名')
       } else if (r.status === 403) {
-        setError('API 请求频率超限，请稍后再试')
+        setError('API 频率超限（未登录 60次/小时），请稍后再试')
       } else {
         setError('查询失败，请稍后重试')
       }
@@ -295,13 +331,162 @@ function GitHubUserTool() {
     }
     setLoading(false)
   }
-  return (<div className="p-4"><div className="flex gap-2 mb-4"><input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索 GitHub 用户名..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" /><button type="button" onClick={search} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '搜索'}</button></div>{loading && <div className="flex items-center justify-center py-8"><RefreshCw size={20} className="animate-spin text-accent" /></div>}{error && <div className="text-center py-6"><div className="text-3xl mb-2">😕</div><p className="text-sm text-[rgb(var(--text-secondary))]">{error}</p></div>}{!loading && !error && !user && <div className="text-center py-8"><div className="text-3xl mb-2">🐙</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入 GitHub 用户名开始搜索</p><p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">例如：torvalds, gaearon, yyx990803</p></div>}{user && <div className="text-center"><img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" /><div className="font-bold text-[rgb(var(--text-primary))] text-lg">{user.name || user.login}</div><div className="text-xs text-[rgb(var(--text-secondary))] mt-1">@{user.login}</div>{user.bio && <div className="text-xs text-[rgb(var(--text-secondary))] mt-2 px-2 leading-relaxed">{user.bio}</div>}<div className="grid grid-cols-3 gap-2 mt-4 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.public_repos}</div><div className="text-[rgb(var(--text-secondary))]">仓库</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.followers}</div><div className="text-[rgb(var(--text-secondary))]">粉丝</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{user.following}</div><div className="text-[rgb(var(--text-secondary))]">关注</div></div></div>{user.location && <div className="text-xs text-[rgb(var(--text-secondary))] mt-3">📍 {user.location}</div>}{user.company && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">🏢 {user.company}</div>}{user.blog && <a href={user.blog.startsWith('http') ? user.blog : `https://${user.blog}`} target="_blank" rel="noreferrer" className="text-xs text-accent mt-1 truncate block hover:underline">🔗 {user.blog}</a>}{user.created_at && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">📅 加入于 {new Date(user.created_at).toLocaleDateString('zh-CN')}</div>}<a href={user.html_url} target="_blank" rel="noreferrer" className="inline-block mt-4 px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors">查看 GitHub 主页 →</a></div>}</div>)
+
+  return (
+    <div className="p-4">
+      <div className="flex gap-2 mb-2">
+        <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="搜索 GitHub 用户名..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+        <button type="button" onClick={() => search()} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">{loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}搜索</button>
+      </div>
+      {history.length > 0 && !user && !loading && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {history.map(h => (
+            <button key={h} type="button" onClick={() => search(h)} className="px-2.5 py-1 rounded-lg bg-[rgb(var(--bg-secondary))] text-[11px] text-[rgb(var(--text-secondary))] hover:bg-accent/10 hover:text-accent transition-colors">{h}</button>
+          ))}
+        </div>
+      )}
+      {loading && (
+        <div className="space-y-3 animate-pulse">
+          <div className="flex flex-col items-center">
+            <div className="w-20 h-20 rounded-full bg-[rgb(var(--bg-secondary))]" />
+            <div className="h-5 w-32 rounded bg-[rgb(var(--bg-secondary))] mt-3" />
+            <div className="h-3 w-20 rounded bg-[rgb(var(--bg-secondary))] mt-2" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">{[0, 1, 2].map(i => <div key={i} className="h-14 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
+        </div>
+      )}
+      {error && !loading && (
+        <div className="text-center py-6">
+          <div className="text-3xl mb-2">😕</div>
+          <p className="text-sm text-[rgb(var(--text-secondary))] mb-3">{error}</p>
+          <button type="button" onClick={() => search()} className="px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs hover:bg-accent/20 transition-colors">重试</button>
+        </div>
+      )}
+      {!loading && !error && !user && (
+        <div className="text-center py-8">
+          <div className="text-3xl mb-2">🐙</div>
+          <p className="text-sm text-[rgb(var(--text-secondary))]">输入 GitHub 用户名开始搜索</p>
+          <p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">例如：torvalds, gaearon, yyx990803</p>
+        </div>
+      )}
+      {user && !loading && (
+        <div className="text-center">
+          <img src={user.avatar_url} alt={user.login} className="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-accent/30" />
+          <div className="font-bold text-[rgb(var(--text-primary))] text-lg">{user.name || user.login}</div>
+          <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">@{user.login}</div>
+          {user.bio && <div className="text-xs text-[rgb(var(--text-secondary))] mt-2 px-2 leading-relaxed">{user.bio}</div>}
+          <div className="grid grid-cols-3 gap-2 mt-4 text-xs">
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.public_repos)}</div><div className="text-[rgb(var(--text-secondary))]">仓库</div></div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.followers)}</div><div className="text-[rgb(var(--text-secondary))]">粉丝</div></div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2 text-center"><div className="font-bold text-accent">{formatCount(user.following)}</div><div className="text-[rgb(var(--text-secondary))]">关注</div></div>
+          </div>
+          <div className="text-xs text-[rgb(var(--text-secondary))] mt-3 space-y-1 text-left px-2">
+            {user.location && <div>📍 {user.location}</div>}
+            {user.company && <div>🏢 {user.company}</div>}
+            {user.blog && <a href={user.blog.startsWith('http') ? user.blog : `https://${user.blog}`} target="_blank" rel="noreferrer" className="block text-accent hover:underline truncate">🔗 {user.blog}</a>}
+            {user.twitter_username && <a href={`https://twitter.com/${user.twitter_username}`} target="_blank" rel="noreferrer" className="block text-accent hover:underline">🐦 @{user.twitter_username}</a>}
+            {user.created_at && <div>📅 加入于 {new Date(user.created_at).toLocaleDateString('zh-CN')}</div>}
+          </div>
+          {topRepos.length > 0 && (
+            <div className="mt-4 text-left">
+              <div className="text-xs font-bold text-[rgb(var(--text-secondary))] mb-2 px-1">🏆 热门仓库</div>
+              <div className="space-y-1.5">
+                {topRepos.map((repo: any) => (
+                  <a key={repo.id} href={repo.html_url} target="_blank" rel="noreferrer" className="block p-2.5 rounded-xl bg-[rgb(var(--bg-secondary))] hover:bg-accent/5 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-accent truncate">{repo.name}</span>
+                      <span className="text-[10px] text-[rgb(var(--text-secondary))] shrink-0 ml-2">⭐ {formatCount(repo.stargazers_count)}</span>
+                    </div>
+                    {repo.description && <div className="text-[10px] text-[rgb(var(--text-secondary))] mt-0.5 line-clamp-2">{repo.description}</div>}
+                    {repo.language && <div className="flex items-center gap-1 mt-1"><span className="w-2 h-2 rounded-full" style={{ background: LANG_COLORS[repo.language] || '#ccc' }} /><span className="text-[10px] text-[rgb(var(--text-secondary))]">{repo.language}</span></div>}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+          {loadingRepos && (
+            <div className="mt-4 text-left">
+              <div className="text-xs font-bold text-[rgb(var(--text-secondary))] mb-2 px-1">🏆 热门仓库</div>
+              <div className="space-y-1.5 animate-pulse">{[0, 1, 2].map(i => <div key={i} className="h-12 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
+            </div>
+          )}
+          <a href={user.html_url} target="_blank" rel="noreferrer" className="inline-block mt-4 px-4 py-2 rounded-xl bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors">查看 GitHub 主页 →</a>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function GitHubRepoTool() {
-  const [query, setQuery] = useState(''); const [repos, setRepos] = useState<any[]>([]); const [loading, setLoading] = useState(false)
-  const search = async () => { if (!query.trim()) return; setLoading(true); try { const r = await fetch(`https://api.github.com/search/repositories?q=${query.trim()}&sort=stars&per_page=5`); const d = await r.json(); setRepos(d.items || []) } catch { setRepos([]) }; setLoading(false) }
-  return (<div className="p-4"><div className="flex gap-2 mb-4"><input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索仓库..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" /><button type="button" onClick={search} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '搜索'}</button></div><div className="space-y-2 overflow-y-auto max-h-[300px]">{repos.map((repo: any) => (<div key={repo.id} className="p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="font-bold text-sm text-accent">{repo.full_name}</div><div className="text-xs text-[rgb(var(--text-secondary))] mt-1 line-clamp-2">{repo.description || '暂无描述'}</div><div className="flex gap-3 mt-2 text-[10px] text-[rgb(var(--text-secondary))]"><span>⭐ {repo.stargazers_count}</span><span>🍴 {repo.forks_count}</span><span>{repo.language || 'N/A'}</span></div></div>))}</div></div>)
+  const [query, setQuery] = useState('')
+  const [repos, setRepos] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [sortBy, setSortBy] = useState<'stars' | 'forks' | 'updated'>('stars')
+  const [searched, setSearched] = useState(false)
+  const [history, setHistory] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('github-repo-history') || '[]') } catch { return [] }
+  })
+
+  const saveHistory = (q: string) => {
+    const updated = [q, ...history.filter(h => h !== q)].slice(0, 6)
+    setHistory(updated)
+    localStorage.setItem('github-repo-history', JSON.stringify(updated))
+  }
+
+  const search = async (q?: string) => {
+    const term = (q ?? query).trim()
+    if (!term) return
+    if (q) setQuery(q)
+    setLoading(true); setSearched(true)
+    try {
+      const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(term)}&sort=${sortBy}&per_page=8`)
+      const d = await r.json()
+      setRepos(d.items || [])
+      if (d.items?.length > 0) saveHistory(term)
+    } catch { setRepos([]) }
+    setLoading(false)
+  }
+
+  return (
+    <div className="p-4">
+      <div className="flex gap-2 mb-2">
+        <input type="text" value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索仓库..." onKeyDown={e => e.key === 'Enter' && search()} className="flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" />
+        <button type="button" onClick={() => search()} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">{loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}搜索</button>
+      </div>
+      <div className="flex gap-1 mb-2">
+        {(['stars', 'forks', 'updated'] as const).map(s => (
+          <button key={s} type="button" onClick={() => { setSortBy(s); if (searched) search() }} className={`px-2.5 py-1 rounded-lg text-[11px] transition-colors ${sortBy === s ? 'bg-accent text-white' : 'bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]'}`}>{s === 'stars' ? '⭐ 最多星' : s === 'forks' ? '🍴 最多Fork' : '🕐 最近更新'}</button>
+        ))}
+      </div>
+      {history.length > 0 && !searched && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {history.map(h => <button key={h} type="button" onClick={() => search(h)} className="px-2.5 py-1 rounded-lg bg-[rgb(var(--bg-secondary))] text-[11px] text-[rgb(var(--text-secondary))] hover:bg-accent/10 hover:text-accent transition-colors">{h}</button>)}
+        </div>
+      )}
+      <div className="space-y-2 overflow-y-auto max-h-[320px]">
+        {loading && [0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-[rgb(var(--bg-secondary))] animate-pulse" />)}
+        {!loading && repos.map((repo: any) => (
+          <a key={repo.id} href={repo.html_url} target="_blank" rel="noreferrer" className="block p-3 rounded-xl bg-[rgb(var(--bg-secondary))] hover:bg-accent/5 transition-colors">
+            <div className="font-bold text-sm text-accent truncate">{repo.full_name}</div>
+            <div className="text-xs text-[rgb(var(--text-secondary))] mt-1 line-clamp-2">{repo.description || '暂无描述'}</div>
+            <div className="flex gap-3 mt-2 text-[10px] text-[rgb(var(--text-secondary))] items-center flex-wrap">
+              {repo.language && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: LANG_COLORS[repo.language] || '#ccc' }} />{repo.language}</span>}
+              <span>⭐ {formatCount(repo.stargazers_count)}</span>
+              <span>🍴 {formatCount(repo.forks_count)}</span>
+              {repo.license && <span>📜 {repo.license.spdx_id}</span>}
+              <span>🔄 {new Date(repo.updated_at).toLocaleDateString('zh-CN')}</span>
+            </div>
+          </a>
+        ))}
+        {!loading && searched && repos.length === 0 && (
+          <div className="text-center py-8"><div className="text-3xl mb-2">📦</div><p className="text-sm text-[rgb(var(--text-secondary))]">未找到相关仓库</p></div>
+        )}
+        {!loading && !searched && (
+          <div className="text-center py-8"><div className="text-3xl mb-2">📦</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入关键词搜索 GitHub 仓库</p></div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function HistoryTodayTool() {
@@ -758,23 +943,112 @@ function ExpressTrackingTool() {
 
 // ========== 手机归属地 ==========
 function PhoneLocationTool() {
-  const [phone, setPhone] = useState(''); const [result, setResult] = useState<any>(null); const [loading, setLoading] = useState(false); const [error, setError] = useState<string | null>(null)
-  const query = async () => {
-    if (!phone.trim()) { setError('请输入手机号码'); return }
-    if (phone.trim().length < 7) { setError('手机号码至少需要 7 位'); return }
-    setLoading(true); setError(null); setResult(null)
+  const [phone, setPhone] = useState('')
+  const [result, setResult] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [history, setHistory] = useState<{ num: string; label: string }[]>(() => {
+    try { return JSON.parse(localStorage.getItem('phone-history') || '[]') } catch { return [] }
+  })
+
+  const validatePhone = (num: string) => /^1[3-9]\d{9}$/.test(num)
+  const maskPhone = (num: string) => num.slice(0, 3) + '****' + num.slice(7)
+
+  const saveHistory = (num: string, label: string) => {
+    const entry = { num, label }
+    const updated = [entry, ...history.filter(h => h.num !== num)].slice(0, 6)
+    setHistory(updated)
+    localStorage.setItem('phone-history', JSON.stringify(updated))
+  }
+
+  const query = async (num?: string) => {
+    const phoneNum = (num ?? phone).trim()
+    if (!phoneNum) { setError('请输入手机号码'); return }
+    if (!validatePhone(phoneNum)) { setError('请输入正确的 11 位手机号码'); return }
+    setLoading(true); setError(null); setResult(null); setCopied(false)
     try {
-      const r = await fetch(`${API}/misc/phoneinfo?phone=${phone.trim()}`)
+      const r = await fetch(`${API}/misc/phoneinfo?phone=${phoneNum}`)
       if (!r.ok) throw new Error('API error')
       const d = await r.json()
-      if (!d || (!d.province && !d.city && !d.sp)) { setError('未查询到归属地信息'); }
-      else { setResult(d) }
-    } catch {
-      setError('查询失败，请稍后重试')
-    }
+      if (!d || (!d.province && !d.city && !d.sp)) { setError('未查询到归属地信息') }
+      else {
+        setResult(d)
+        const label = [d.province || d.provinceName, d.city || d.cityName].filter(Boolean).join(' · ')
+        saveHistory(phoneNum, label)
+      }
+    } catch { setError('查询失败，请稍后重试') }
     setLoading(false)
   }
-  return (<div className="p-4"><div className="flex gap-2 mb-3"><input type="text" value={phone} onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 11)); setError(null) }} onKeyDown={e => e.key === 'Enter' && query()} placeholder="输入手机号码..." className={`flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-400/40' : 'focus:ring-accent/30'}`} /><button type="button" onClick={query} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors">{loading ? <RefreshCw size={14} className="animate-spin" /> : '查询'}</button></div>{error && <div className="text-center py-2 mb-2"><p className="text-xs text-red-400">{error}</p></div>}{loading && <div className="flex items-center justify-center py-8"><RefreshCw size={20} className="animate-spin text-accent" /></div>}{!loading && !result && !error && <div className="text-center py-8"><div className="text-3xl mb-2">📱</div><p className="text-sm text-[rgb(var(--text-secondary))]">输入手机号码查询归属地</p><p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">支持移动、联通、电信号码</p></div>}{result && <div className="space-y-2"><div className="text-center p-4 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5"><div className="text-2xl font-bold text-accent tracking-wider">{phone}</div><div className="text-sm text-[rgb(var(--text-primary))] mt-1">{result.province || result.provinceName}{result.city || result.cityName ? ' · ' + (result.city || result.cityName) : ''}</div></div><div className="grid grid-cols-2 gap-2 text-xs"><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center"><div className="text-[rgb(var(--text-secondary))] mb-0.5">运营商</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.operator || result.isp || result.sp || '—'}</div></div><div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center"><div className="text-[rgb(var(--text-secondary))] mb-0.5">邮编</div><div className="font-bold text-[rgb(var(--text-primary))]">{result.zipcode || result.zip || '—'}</div></div></div></div>}</div>)
+
+  const copyPhone = () => {
+    navigator.clipboard?.writeText(phone).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  }
+
+  const getOperatorStyle = (op?: string) => {
+    if (!op) return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+    if (op.includes('移动')) return 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'
+    if (op.includes('联通')) return 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300'
+    if (op.includes('电信')) return 'bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-300'
+    return 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
+  }
+
+  return (
+    <div className="p-4">
+      <div className="flex gap-2 mb-2">
+        <input type="tel" value={phone} onChange={e => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 11)); setError(null) }} onKeyDown={e => e.key === 'Enter' && query()} placeholder="输入 11 位手机号码..." className={`flex-1 bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm tracking-wider focus:outline-none focus:ring-2 ${error ? 'ring-2 ring-red-400/40' : 'focus:ring-accent/30'}`} />
+        <button type="button" onClick={() => query()} className="px-3 py-2 rounded-xl bg-accent text-white text-sm hover:bg-accent/90 transition-colors flex items-center gap-1">{loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />}查询</button>
+      </div>
+      {history.length > 0 && !result && !loading && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {history.map(h => (
+            <button key={h.num} type="button" onClick={() => { setPhone(h.num); query(h.num) }} className="px-2.5 py-1 rounded-lg bg-[rgb(var(--bg-secondary))] text-[11px] text-[rgb(var(--text-secondary))] hover:bg-accent/10 hover:text-accent transition-colors">
+              {maskPhone(h.num)} <span className="opacity-60">{h.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {error && <div className="text-center py-2 mb-2"><p className="text-xs text-red-400">{error}</p></div>}
+      {loading && (
+        <div className="space-y-2 animate-pulse">
+          <div className="h-20 rounded-xl bg-[rgb(var(--bg-secondary))]" />
+          <div className="grid grid-cols-2 gap-2">{[0, 1].map(i => <div key={i} className="h-14 rounded-xl bg-[rgb(var(--bg-secondary))]" />)}</div>
+        </div>
+      )}
+      {!loading && !result && !error && (
+        <div className="text-center py-8">
+          <div className="text-3xl mb-2">📱</div>
+          <p className="text-sm text-[rgb(var(--text-secondary))]">输入手机号码查询归属地</p>
+          <p className="text-[10px] text-[rgb(var(--text-secondary))] mt-1">支持移动、联通、电信号码</p>
+        </div>
+      )}
+      {result && !loading && (
+        <div className="space-y-2">
+          <div className="text-center p-4 rounded-xl bg-gradient-to-br from-accent/10 to-accent/5 relative">
+            <button type="button" onClick={copyPhone} className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-[rgb(var(--bg-secondary))]/50 hover:bg-[rgb(var(--bg-secondary))] transition-colors text-[10px] text-[rgb(var(--text-secondary))]" title="复制号码">{copied ? '✓ 已复制' : '复制'}</button>
+            <div className="text-2xl font-bold text-accent tracking-wider">{phone}</div>
+            <div className="text-sm text-[rgb(var(--text-primary))] mt-1">{result.province || result.provinceName}{result.city || result.cityName ? ' · ' + (result.city || result.cityName) : ''}</div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center">
+              <div className="text-[rgb(var(--text-secondary))] mb-1">运营商</div>
+              <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${getOperatorStyle(result.operator || result.isp || result.sp)}`}>{result.operator || result.isp || result.sp || '—'}</span>
+            </div>
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-center">
+              <div className="text-[rgb(var(--text-secondary))] mb-0.5">邮编</div>
+              <div className="font-bold text-[rgb(var(--text-primary))]">{result.zipcode || result.zip || '—'}</div>
+            </div>
+          </div>
+          {(result.areacode || result.cityCode) && (
+            <div className="bg-[rgb(var(--bg-secondary))] rounded-xl p-2.5 text-xs flex justify-between">
+              <span className="text-[rgb(var(--text-secondary))]">区号</span>
+              <span className="font-bold text-[rgb(var(--text-primary))]">{result.areacode || result.cityCode || '—'}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ========== 主组件 ==========
