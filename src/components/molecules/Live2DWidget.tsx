@@ -15,7 +15,7 @@ import { useEffect } from 'react'
  * 说明：live 站点的 /live2d 资源未返回 CORS 头，浏览器无法跨域加载模型，
  * 因此已将整套资源（runtime + 角色模型 + model_list.json）自托管到本地 public/live2d。
  */
-const AUTOLOAD_SRC = '/live2d/jsdelivr/random/autoload.js?v=4'
+const AUTOLOAD_SRC = '/live2d/jsdelivr/random/autoload.js?v=5'
 
 export function Live2DWidget() {
   useEffect(() => {

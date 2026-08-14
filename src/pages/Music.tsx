@@ -118,10 +118,15 @@ export default function Music() {
               <div className="absolute inset-9 rounded-full border border-white/5" />
               <div className="absolute inset-12 rounded-full border border-white/5" />
               <div
-                className="w-[72px] h-[72px] md:w-24 md:h-24 rounded-full overflow-hidden shadow-inner"
+                className="w-[72px] h-[72px] md:w-24 md:h-24 rounded-full overflow-hidden shadow-inner bg-gradient-to-br from-purple-500/40 to-pink-500/30 flex items-center justify-center"
                 style={{ animation: isPlaying ? 'spin 8s linear infinite' : 'none' }}
               >
-                <img src={currentSong?.cover} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={currentSong?.cover}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                />
               </div>
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white/80 shadow" />
             </div>

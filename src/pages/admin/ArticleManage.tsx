@@ -1,33 +1,46 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Pencil, Trash2, X, FileText, Loader2, Tag, Calendar } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, FileText, Loader2, Tag, Calendar, Upload, Info, ChevronDown } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
 
 /** 后台文章条目 */
 interface ArticleItem {
   id: string
+  slug?: string
   title: string
   category: string
   excerpt: string
   content: string
   date: string
   cover?: string
+  tags?: string[] | string
+  isPinned?: boolean
 }
 
 /** 文章表单数据 */
 interface ArticleForm {
   id?: string
   title: string
+  slug: string
   category: string
   excerpt: string
   content: string
+  cover: string
+  tags: string
+  date: string
+  isPinned: boolean
 }
 
 const EMPTY_FORM: ArticleForm = {
   title: '',
+  slug: '',
   category: '',
   excerpt: '',
   content: '',
+  cover: '',
+  tags: '',
+  date: new Date().toISOString().slice(0, 10),
+  isPinned: false,
 }
 
 export default function ArticleManage() {
@@ -40,6 +53,9 @@ export default function ArticleManage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [showHint, setShowHint] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   /** 加载文章列表 */
   const load = async () => {
@@ -77,9 +93,14 @@ export default function ArticleManage() {
     setForm({
       id: item.id,
       title: item.title || '',
+      slug: item.slug || item.id || '',
       category: item.category || '',
       excerpt: item.excerpt || '',
       content: item.content || '',
+      cover: item.cover || '',
+      tags: Array.isArray(item.tags) ? item.tags.join(', ') : (item.tags || ''),
+      date: item.date || new Date().toISOString().slice(0, 10),
+      isPinned: item.isPinned || false,
     })
     setIsEditing(true)
     setModalOpen(true)
@@ -94,11 +115,19 @@ export default function ArticleManage() {
     }
     setSubmitting(true)
     try {
+      const payload = {
+        ...form,
+        slug: form.slug.trim() || undefined,
+        cover: form.cover.trim(),
+        tags: form.tags.split(',').map((t: string) => t.trim()).filter(Boolean),
+        date: form.date || new Date().toISOString().slice(0, 10),
+        isPinned: form.isPinned,
+      }
       if (isEditing && form.id) {
-        await adminApi.updateArticle(form)
+        await adminApi.updateArticle(payload)
         showToast('文章已更新')
       } else {
-        await adminApi.createArticle(form)
+        await adminApi.createArticle(payload)
         showToast('文章已创建')
       }
       setModalOpen(false)
@@ -124,8 +153,35 @@ export default function ArticleManage() {
     }
   }
 
+  /** 上传 Markdown 文件 */
+  const handleUploadArticle = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      await adminApi.uploadArticleMarkdown(file)
+      showToast('文章上传成功')
+      void load()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '上传失败')
+    } finally {
+      setUploading(false)
+      // 重置 input，允许再次选择同一文件
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* 隐藏的文件选择器 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md"
+        className="hidden"
+        onChange={handleUploadArticle}
+      />
+
       {/* 顶部标题栏 */}
       <div className="flex items-center justify-between">
         <div>
@@ -134,12 +190,61 @@ export default function ArticleManage() {
             共 {articles.length} 篇文章
           </p>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          >
+            <Plus size={16} /> 新建文章
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            {uploading ? '上传中...' : '上传 Markdown'}
+          </button>
+        </div>
+      </div>
+
+      {/* Markdown frontmatter 格式提示 */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
         <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          onClick={() => setShowHint(!showHint)}
+          className="flex w-full items-center gap-2 px-4 py-3 text-sm text-white/60 transition-colors hover:text-white/80"
         >
-          <Plus size={16} /> 新建文章
+          <Info size={14} />
+          <span>Markdown frontmatter 格式说明</span>
+          <ChevronDown
+            size={14}
+            className={`ml-auto transition-transform ${showHint ? 'rotate-180' : ''}`}
+          />
         </button>
+        <AnimatePresence>
+          {showHint && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <pre className="mx-4 mb-4 overflow-x-auto rounded-xl bg-black/30 p-4 text-xs leading-relaxed text-white/70">
+{`---
+title: 文章标题
+date: 2026-08-14
+category: 技术
+tags: [React, TypeScript]
+cover: https://example.com/cover.jpg
+excerpt: 文章摘要
+---
+
+正文内容...`}
+              </pre>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* 错误提示 */}
@@ -274,6 +379,77 @@ export default function ArticleManage() {
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
                   />
                 </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      URL 别名（留空自动生成）
+                    </label>
+                    <input
+                      value={form.slug}
+                      onChange={(e) => setForm({ ...form, slug: e.target.value })}
+                      placeholder="如：my-first-post"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      发布日期
+                    </label>
+                    <input
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-white/60 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.isPinned}
+                    onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
+                    className="accent-blue-500 h-4 w-4"
+                  />
+                  置顶文章
+                </label>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      封面图片 URL
+                    </label>
+                    <input
+                      value={form.cover}
+                      onChange={(e) => setForm({ ...form, cover: e.target.value })}
+                      placeholder="https://example.com/cover.jpg"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      标签（逗号分隔）
+                    </label>
+                    <input
+                      value={form.tags}
+                      onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                      placeholder="React, TypeScript, 前端"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
+                </div>
+
+                {form.cover && (
+                  <div className="overflow-hidden rounded-xl border border-white/10">
+                    <img
+                      src={form.cover}
+                      alt="封面预览"
+                      className="h-32 w-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-white/60">

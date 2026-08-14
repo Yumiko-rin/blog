@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getArticlesByTag, ALL_TAGS } from '@/data/articles'
+import { ARTICLES, loadArticles } from '@/data/articles'
 import { GlassCard } from '@/components/molecules/GlassCard'
 import { getArticleViews } from '@/utils/articleMetrics'
 
@@ -11,7 +11,28 @@ export default function Tags() {
   const [searchParams, setSearchParams] = useSearchParams()
   const activeTag = searchParams.get('tag')
 
-  const articlesByTag = useMemo(() => getArticlesByTag(), [])
+  const [articles, setArticles] = useState(ARTICLES)
+
+  // 异步加载文章（后台发布的 + 静态内置合并），静态数据作为初始值避免空白闪烁
+  useEffect(() => {
+    loadArticles().then(setArticles)
+  }, [])
+
+  // 从加载后的文章列表中计算标签聚合
+  const articlesByTag = useMemo(() => {
+    return articles.reduce((acc, article) => {
+      article.tags.forEach((tag) => {
+        if (!acc[tag]) acc[tag] = []
+        acc[tag].push(article)
+      })
+      return acc
+    }, {} as Record<string, typeof articles>)
+  }, [articles])
+
+  const allTags = useMemo(
+    () => [...new Set(articles.flatMap((a) => a.tags))],
+    [articles]
+  )
 
   const displayedArticles = useMemo(() => {
     if (!activeTag) return []
@@ -27,7 +48,7 @@ export default function Tags() {
 
       {/* 标签云 */}
       <div className="mb-8 flex flex-wrap justify-center gap-2">
-        {ALL_TAGS.map((tag) => {
+        {allTags.map((tag) => {
           const isActive = tag === activeTag
           const count = articlesByTag[tag]?.length ?? 0
           return (

@@ -112,11 +112,16 @@ export function quickLogin(nick: string, mail: string): { ok: boolean; error?: s
 
 /** 博主邮箱（与服务端 ADMIN_MAIL 保持一致） */
 export const ADMIN_MAIL = 'jaychou8421@gmail.com'
+/** 博主昵称 */
+export const ADMIN_NICK = 'jay'
 
-/** 当前用户是否为博主身份 */
+/** 当前用户是否为博主身份（邮箱匹配即为博主，昵称仅辅助） */
 export function isAdminUser(): boolean {
   const s = getSession()
-  return s ? s.mail === ADMIN_MAIL : false
+  if (s) return s.mail.toLowerCase() === ADMIN_MAIL.toLowerCase()
+  const id = readIdentity()
+  if (id.mail) return id.mail.toLowerCase() === ADMIN_MAIL.toLowerCase()
+  return false
 }
 
 /* --------------------------- 身份 / 令牌 --------------------------- */
@@ -333,29 +338,18 @@ export async function likeComment(id: string): Promise<{ ok: boolean; likes?: nu
   }
 }
 
-export async function deleteComment(id: string, mail?: string): Promise<{ ok: boolean; error?: string }> {
+export async function deleteComment(id: string, mail?: string, nick?: string): Promise<{ ok: boolean; error?: string }> {
   const token = viewerToken()
   try {
     const r = await fetch(`${API}/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, token, mail }),
+      body: JSON.stringify({ id, token, mail, nick }),
     })
     const d = await r.json().catch(() => ({}))
     if (r.ok && d?.ok) return { ok: true }
-    if (r.status >= 400 && r.status < 500 && d?.error) return { ok: false, error: d.error }
-    throw new Error('fail')
+    return { ok: false, error: d?.error || `删除失败 (${r.status})` }
   } catch {
-    const rows = loadLocal()
-    const dead = new Set([id])
-    let grew = true
-    while (grew) {
-      grew = false
-      for (const r of rows) {
-        if (r.parentId && dead.has(r.parentId) && !dead.has(r.id)) { dead.add(r.id); grew = true }
-      }
-    }
-    saveLocal(rows.filter((r) => !dead.has(r.id)))
-    return { ok: true }
+    return { ok: false, error: '网络错误，请检查连接后重试' }
   }
 }

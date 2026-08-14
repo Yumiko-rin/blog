@@ -62,6 +62,7 @@ export function FullPlayer({
             src={song.cover}
             alt=""
             className="absolute inset-0 w-full h-full object-cover scale-110 blur-3xl opacity-30"
+            onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/50 to-black/70 dark:from-black/60 dark:via-black/70 dark:to-black/80" />
@@ -92,14 +93,14 @@ export function FullPlayer({
                 <div className="relative group">
                   <div className={`absolute -inset-4 rounded-full bg-white/10 blur-2xl
                     ${isPlaying ? 'opacity-100 animate-pulse-slow' : 'opacity-50'} transition-opacity duration-500`} />
-                  <div className="relative">
+                  <div className="relative h-44 w-44 sm:h-56 sm:w-56 md:h-64 md:w-64 rounded-full bg-gradient-to-br from-purple-500/40 to-pink-500/30 overflow-hidden ring-4 ring-white/20 shadow-2xl shadow-black/30">
                     <img
                       src={song.cover}
                       alt={song.name}
                       className={`relative z-10 h-44 w-44 sm:h-56 sm:w-56 md:h-64 md:w-64
-                        rounded-full object-cover shadow-2xl shadow-black/30
-                        ring-4 ring-white/20
+                        rounded-full object-cover
                         ${isPlaying ? 'animate-spin-slow' : ''}`}
+                      onError={(e) => { e.currentTarget.style.opacity = '0' }}
                     />
                     <div className="absolute inset-0 z-20 flex items-center justify-center">
                       <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-white/90 shadow-lg" />

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import { ARTICLES } from '@/data/articles'
+import { ARTICLES, loadArticles } from '@/data/articles'
 import { BG_IMAGES } from '@/data/backgrounds'
 import { BannerOverlay } from '@/components/home/BannerOverlay'
 import { WaveTransition } from '@/components/home/WaveTransition'
+import { ScrollParallax } from '@/components/home/ScrollParallax'
 import { ProfileCard } from '@/components/home/ProfileCard'
 import { SidebarMusicPlayer } from '@/components/home/SidebarMusicPlayer'
 import { ScheduleWidget } from '@/components/home/ScheduleWidget'
@@ -11,8 +12,9 @@ import { AccessStatsWidget } from '@/components/home/AccessStatsWidget'
 import { HotSearchWidget } from '@/components/home/HotSearchWidget'
 import { WeatherWidget } from '@/components/home/WeatherWidget'
 import { FestivalCountdownWidget } from '@/components/home/FestivalCountdownWidget'
-import { CategoryFilterBar } from '@/components/home/CategoryFilterBar'
 import { PostCard } from '@/components/home/PostCard'
+import { OnlineVisitors } from '@/components/home/OnlineVisitors'
+import { ArticleHeatmap } from '@/components/home/ArticleHeatmap'
 import { Footer } from '@/components/layout/Footer'
 
 const PAGE_SIZE = 6
@@ -24,9 +26,14 @@ const PAGE_SIZE = 6
  * 文章列表：两两一行（双列网格），超出后底部数字分页（1-9 页标）
  */
 export default function Home() {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [bannerIndex, setBannerIndex] = useState(0)
   const [page, setPage] = useState(1)
+  const [articles, setArticles] = useState(ARTICLES)
+
+  // 异步加载文章（后台发布的 + 静态内置合并），静态数据作为初始值避免空白闪烁
+  useEffect(() => {
+    loadArticles().then(setArticles)
+  }, [])
 
   // Banner 直接使用全局背景图（与设置/动态背景同源，数量已扩充）
   const bannerImages = BG_IMAGES.map((b) => b.url)
@@ -39,21 +46,11 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [bannerImages.length])
 
-  // 筛选文章
-  const filteredArticles = activeCategory
-    ? ARTICLES.filter((a) => a.tags.includes(activeCategory))
-    : ARTICLES
-
-  // 切换分类时回到第一页
-  useEffect(() => {
-    setPage(1)
-  }, [activeCategory])
-
   // 分页
-  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(articles.length / PAGE_SIZE))
   const pageArticles = useMemo(
-    () => filteredArticles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filteredArticles, page]
+    () => articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [articles, page]
   )
 
   // 计算要展示的页码（最多 9 个，超出则窗口化）
@@ -68,6 +65,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* ===== 滚动视差层 ===== */}
+      <ScrollParallax />
+
       {/* ===== 全屏 Banner ===== */}
       <div className="banner-container">
         {/* 背景图轮播 */}
@@ -116,14 +116,6 @@ export default function Home() {
 
         {/* 主内容区 */}
         <div className="min-w-0 space-y-4">
-          {/* 分类筛选栏 */}
-          <div className="onload-animation widget-card p-3">
-            <CategoryFilterBar
-              activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
-            />
-          </div>
-
           {/* 文章列表 - 双列网格 */}
           <div className="post-cards-grid">
             {pageArticles.map((article, index) => (
@@ -133,9 +125,9 @@ export default function Home() {
             ))}
           </div>
 
-          {filteredArticles.length === 0 && (
+          {articles.length === 0 && (
             <div className="widget-card p-8 text-center">
-              <p className="text-[rgb(var(--text-secondary))]">该分类下暂无文章</p>
+              <p className="text-[rgb(var(--text-secondary))]">暂无文章</p>
             </div>
           )}
 
@@ -192,10 +184,16 @@ export default function Home() {
             <SiteStatsWidget />
           </div>
           <div className="onload-animation">
+            <OnlineVisitors />
+          </div>
+          <div className="onload-animation">
             <WeatherWidget />
           </div>
           <div className="onload-animation">
             <FestivalCountdownWidget />
+          </div>
+          <div className="onload-animation">
+            <ArticleHeatmap />
           </div>
         </aside>
 

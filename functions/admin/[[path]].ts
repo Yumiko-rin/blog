@@ -30,7 +30,7 @@ interface AdminEnv extends Env {
   ADMIN_KV?: KVNamespace
 }
 
-const ADMIN_PASSWORD = 'kirameki2026'
+const ADMIN_PASSWORD = '123456'
 const JWT_SECRET = 'kirameki-jwt-secret-2026-very-long'
 
 /* ===== 工具函数 ===== */
@@ -221,9 +221,25 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
     if (route === '/articles' && request.method === 'POST') {
       const body = await readBody(request)
       const articles = await kvGet<any[]>(adminKv, KV_ARTICLES) || []
+      const slug = body.slug || body.title
+        ? (body.slug || body.title).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-').replace(/^-+|-+$/g, '') || `a${Date.now().toString(36)}`
+        : `a${Date.now().toString(36)}`
+      const content = body.content || ''
       const article = {
-        id: `a${Date.now().toString(36)}`,
-        ...body,
+        id: slug,
+        slug,
+        title: body.title || '无标题',
+        excerpt: body.excerpt || content.substring(0, 120).replace(/[#*\n]/g, ' ').trim(),
+        content,
+        cover: body.cover || '',
+        category: body.category || '未分类',
+        tags: Array.isArray(body.tags) ? body.tags : [],
+        date: body.date || new Date().toISOString().slice(0, 10),
+        views: 0,
+        likes: 0,
+        readingTime: Math.max(1, Math.ceil(content.length / 500)),
+        isPinned: body.isPinned || false,
+        wordCount: content.length,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
@@ -261,7 +277,10 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
       const list = await kvGet<any[]>(adminKv, KV_SHUOSHUO) || []
       const item = {
         id: `s${Date.now().toString(36)}`,
-        ...body,
+        content: body.content || '',
+        mood: body.mood || '',
+        date: body.date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+        images: Array.isArray(body.images) ? body.images : [],
         createdAt: new Date().toISOString(),
       }
       list.unshift(item)
@@ -338,6 +357,90 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
       } catch {
         return json({ error: '操作失败' }, 500)
       }
+    }
+
+    /* ---- Markdown 文件上传（文章）---- */
+    if (route === '/articles/upload' && request.method === 'POST') {
+      const formData = await request.formData()
+      const file = formData.get('file') as File | null
+      if (!file || !file.name.endsWith('.md')) {
+        return json({ error: '请上传 .md 文件' }, 400)
+      }
+      const text = await file.text()
+      // 解析 frontmatter（--- 分隔的 YAML 头部）
+      let meta: Record<string, any> = {}
+      let content = text
+      const fmMatch = text.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/)
+      if (fmMatch) {
+        const fmText = fmMatch[1]
+        content = fmMatch[2]
+        // 简单 YAML 解析（key: value 格式）
+        for (const line of fmText.split('\n')) {
+          const m = line.match(/^(\w+):\s*(.*)$/)
+          if (m) {
+            const key = m[1]
+            let val: any = m[2].trim()
+            // 去除引号
+            if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1)
+            else if (val.startsWith("'") && val.endsWith("'")) val = val.slice(1, -1)
+            // 数组格式 [a, b, c]
+            if (val.startsWith('[') && val.endsWith(']')) {
+              val = val.slice(1, -1).split(',').map(s => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean)
+            }
+            meta[key] = val
+          }
+        }
+      }
+      const articles = await kvGet<any[]>(adminKv, KV_ARTICLES) || []
+      const slug = meta.slug || meta.id || file.name.replace(/\.md$/, '')
+      const article = {
+        id: slug,
+        slug,
+        title: meta.title || file.name.replace(/\.md$/, ''),
+        excerpt: meta.excerpt || meta.description || content.substring(0, 120).replace(/[#*\n]/g, ' ').trim(),
+        content,
+        cover: meta.cover || meta.image || '',
+        category: meta.category || '未分类',
+        tags: Array.isArray(meta.tags) ? meta.tags : (meta.tags ? String(meta.tags).split(',').map((t: string) => t.trim()) : []),
+        date: meta.date || new Date().toISOString().slice(0, 10),
+        views: 0,
+        likes: 0,
+        readingTime: Math.max(1, Math.ceil(content.length / 500)),
+        isPinned: false,
+        wordCount: content.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      // 去重：同 slug 覆盖
+      const existingIdx = articles.findIndex(a => a.slug === slug || a.id === slug)
+      if (existingIdx >= 0) {
+        articles[existingIdx] = { ...articles[existingIdx], ...article }
+      } else {
+        articles.unshift(article)
+      }
+      await kvSet(adminKv, KV_ARTICLES, articles)
+      return json({ ok: true, article })
+    }
+
+    /* ---- Markdown 文件上传（说说）---- */
+    if (route === '/shuoshuo/upload' && request.method === 'POST') {
+      const formData = await request.formData()
+      const file = formData.get('file') as File | null
+      const mood = (formData.get('mood') as string) || ''
+      if (!file) return json({ error: '请上传文件' }, 400)
+      const text = await file.text()
+      const list = await kvGet<any[]>(adminKv, KV_SHUOSHUO) || []
+      const item = {
+        id: `s${Date.now().toString(36)}`,
+        date: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        mood: mood || '',
+        content: text.trim(),
+        images: [] as string[],
+        createdAt: new Date().toISOString(),
+      }
+      list.unshift(item)
+      await kvSet(adminKv, KV_SHUOSHUO, list)
+      return json({ ok: true, item })
     }
 
     /* ---- 统计详情 ---- */

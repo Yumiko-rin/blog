@@ -59,9 +59,9 @@ export default defineConfig({
         secure: true,
         rewrite: (p) => p.replace(/^\/kuaidi/, ''),
       },
-      // 音乐：自建 Meting-API（47.104.189.4，http 无 CORS 问题但需同源避免 mixed-content）
+      // 音乐：Meting API（NaiHe 公共实例，HTTPS，支持 CORS）
       '/music': {
-        target: 'http://47.104.189.4/music',
+        target: 'https://meting.naihee.com/api',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/music/, ''),
       },

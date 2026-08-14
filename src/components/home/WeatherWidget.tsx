@@ -65,7 +65,7 @@ function readCache(): WeatherState | null {
 
 async function fetchWeather(lat: number, lon: number, located: boolean): Promise<WeatherState> {
   const [wx, geo] = await Promise.allSettled([
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=4`),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=8`),
     fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=zh`),
   ])
 
@@ -92,7 +92,7 @@ async function fetchWeather(lat: number, lon: number, located: boolean): Promise
       tmin: Math.round(w.daily.temperature_2m_min[0]),
     }
     const dates: string[] = w.daily.time
-    daily = dates.slice(1, 4).map((date: string, i: number) => ({
+    daily = dates.slice(1, 8).map((date: string, i: number) => ({
       date,
       code: w.daily.weather_code[i + 1],
       tmax: Math.round(w.daily.temperature_2m_max[i + 1]),
@@ -213,7 +213,7 @@ export function WeatherWidget() {
             {timeText && <span className="ml-auto opacity-70">{timeText} 更新</span>}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             {state.daily.map((d) => (
               <div key={d.date} className="text-center rounded-lg bg-[rgb(var(--bg-secondary))] py-2">
                 <div className="text-[10px] text-[rgb(var(--text-secondary))]">{weekday(d.date)}</div>

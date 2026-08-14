@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { Search, Shuffle, Plus, X, Check, ExternalLink, Copy } from 'lucide-react'
-import { FRIENDS } from '@/data/friends'
+import { FRIENDS, loadFriends } from '@/data/friends'
 import { storage, STORAGE_KEYS } from '@/utils/storage'
 import type { Friend } from '@/types'
 
@@ -435,6 +435,12 @@ export default function Friends() {
   const [appsOpen, setAppsOpen] = useState(false)
   // 已通过申请的友链（后台审核通过后自动并入展示）
   const [approved, setApproved] = useState<Friend[]>([])
+  // 友链列表（静态数据作为初始值，异步加载合并后台审批通过的友链）
+  const [friends, setFriends] = useState(FRIENDS)
+
+  useEffect(() => {
+    loadFriends().then(setFriends)
+  }, [])
 
   useEffect(() => {
     // 清除历史遗留的本地申请记录（申请已改为后端持久化，旧的本地草稿一并清理）
@@ -454,12 +460,12 @@ export default function Friends() {
     return () => { alive = false }
   }, [])
 
-  // 静态友链 + 已通过申请，按 url 去重
+  // 友链列表 + 已通过申请，按 url 去重
   const allFriends = useMemo(() => {
-    const seen = new Set(FRIENDS.map((f) => f.url))
+    const seen = new Set(friends.map((f) => f.url))
     const extra = approved.filter((f) => !seen.has(f.url))
-    return [...extra, ...FRIENDS]
-  }, [approved])
+    return [...extra, ...friends]
+  }, [approved, friends])
 
   const filtered = useMemo(() => {
     const k = keyword.trim().toLowerCase()

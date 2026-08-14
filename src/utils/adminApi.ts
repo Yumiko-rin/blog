@@ -4,8 +4,10 @@ const BASE = '/admin'
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = useAdminStore.getState().token
+  const isFormData = options.body instanceof FormData
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    // FormData 时由浏览器自动设置 Content-Type（含 multipart boundary）
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string>),
   }
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -52,6 +54,14 @@ export const adminApi = {
       method: 'DELETE',
       body: JSON.stringify({ id }),
     }),
+  uploadArticleMarkdown: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<{ ok: boolean; article: any }>('/articles/upload', {
+      method: 'POST',
+      body: formData,
+    })
+  },
 
   // Shuoshuo
   listShuoshuo: () => request<{ list: any[] }>('/shuoshuo'),
@@ -70,6 +80,15 @@ export const adminApi = {
       method: 'DELETE',
       body: JSON.stringify({ id }),
     }),
+  uploadShuoshuoMarkdown: (file: File, mood?: string) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (mood) formData.append('mood', mood)
+    return request<{ ok: boolean; item: any }>('/shuoshuo/upload', {
+      method: 'POST',
+      body: formData,
+    })
+  },
 
   // Comments
   listComments: () => request<{ list: any[]; total: number }>('/comments'),

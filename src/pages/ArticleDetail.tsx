@@ -3,25 +3,17 @@ import { useParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import { ArrowLeft, Calendar, Clock, Eye, Heart, Tag } from 'lucide-react'
-import { ARTICLES } from '@/data/articles'
+import { ArrowLeft, Calendar, Clock, Eye } from 'lucide-react'
+import { ARTICLES, loadArticleBySlug } from '@/data/articles'
 import { GlassCard } from '@/components/molecules/GlassCard'
 import { ArticleTOC } from '@/components/molecules/ArticleTOC'
 import { ReadingProgress } from '@/components/molecules/ReadingProgress'
 import { CommentSection } from '@/components/molecules/CommentSection'
+import { CodeBlock } from '@/components/home/CodeBlockEnhance'
+import { LikeHeartAnimation } from '@/components/home/LikeHeartAnimation'
 import { formatDate, formatNumber } from '@/utils/format'
-import { bumpArticleViews, getLocalViews, isArticleLiked } from '@/utils/articleMetrics'
+import { bumpArticleViews, getLocalViews } from '@/utils/articleMetrics'
 
-const LIKED_KEY = 'liked_posts'
-
-function getLikedSet(): Set<string> {
-  try {
-    const raw = localStorage.getItem(LIKED_KEY)
-    return raw ? new Set(JSON.parse(raw)) : new Set()
-  } catch {
-    return new Set()
-  }
-}
 /**
  * ArticleDetail 文章详情页
  * --------------------------------------------------
@@ -33,42 +25,27 @@ function getLikedSet(): Set<string> {
 export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>()
 
-  const article = useMemo(
-    () => ARTICLES.find((a) => a.id === id),
-    [id]
-  )
+  const [article, setArticle] = useState(() => ARTICLES.find((a) => a.id === id))
 
-  // 点赞状态：与 boke.hiromu.top 一致，使用 localStorage 持久化
-  const [liked, setLiked] = useState<boolean>(() => article ? isArticleLiked(article.id) : false)
+  // 异步加载合并后的文章（后台发布的 + 静态内置），静态数据作为初始值兜底
+  useEffect(() => {
+    const fallback = ARTICLES.find((a) => a.id === id)
+    setArticle(fallback)
+    if (!id) return
+    let alive = true
+    loadArticleBySlug(id).then((a) => {
+      if (alive) setArticle(a ?? fallback)
+    })
+    return () => { alive = false }
+  }, [id])
+
   // 本地浏览计数（重置后从现在开始累计）
   const [views, setViews] = useState<number>(() => article ? getLocalViews(article.id) : 0)
 
   useEffect(() => {
-    setLiked(article ? isArticleLiked(article.id) : false)
-    // 进入详情页计一次浏览
+    // 进入详情页计一次浏览（按 id 触发，避免异步加载导致的重复计数）
     if (article) setViews(bumpArticleViews(article.id))
-  }, [article])
-
-  function toggleLike() {
-    if (!article) return
-    const set = getLikedSet()
-    let next = false
-    if (set.has(article.id)) {
-      set.delete(article.id)
-    } else {
-      set.add(article.id)
-      next = true
-    }
-    try {
-      localStorage.setItem(LIKED_KEY, JSON.stringify([...set]))
-    } catch {
-      /* 忽略存储异常 */
-    }
-    setLiked(next)
-  }
-
-  // 点赞数显示：基础值 + 本地是否已点赞
-  const displayLikes = article ? article.likes + (liked ? 1 : 0) : 0
+  }, [article?.id])
 
   // 提取 Markdown 标题生成目录
   const headings = useMemo(() => {
@@ -140,29 +117,9 @@ export default function ArticleDetail() {
                   <Eye size={14} />
                   {formatNumber(article.views + views)} 次浏览
                 </div>
-                <button
-                  type="button"
-                  onClick={toggleLike}
-                  className={`flex items-center gap-1 transition-colors ${
-                    liked
-                      ? 'text-pink-500 hover:text-pink-600'
-                      : 'hover:text-pink-500'
-                  }`}
-                >
-                  <Heart size={14} className={liked ? 'fill-pink-500' : ''} />
-                  {formatNumber(displayLikes)} 个点赞
-                </button>
-                <div className="flex items-center gap-1">
-                  <Tag size={14} />
-                  {article.tags.map((tag) => (
-                    <Link
-                      key={tag}
-                      to={`/tags?tag=${encodeURIComponent(tag)}`}
-                      className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent hover:bg-accent/20 transition-colors"
-                    >
-                      {tag}
-                    </Link>
-                  ))}
+                <div className="flex items-center gap-1 text-[rgb(var(--text-secondary))]">
+                  <LikeHeartAnimation articleId={article.id} baseLikes={article.likes} />
+                  <span className="text-sm">个点赞</span>
                 </div>
               </div>
             </header>
@@ -189,14 +146,15 @@ export default function ArticleDetail() {
                     const slug = text.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '')
                     return <h3 id={slug} {...props}>{children}</h3>
                   },
-                  pre: ({ children, ...props }) => (
-                    <pre
-                      className="glass rounded-xl p-4 overflow-x-auto"
-                      {...props}
-                    >
-                      {children}
-                    </pre>
-                  ),
+                  pre: ({ children }) => {
+                    const child = Array.isArray(children) ? children[0] : children
+                    const childProps = (child as React.ReactElement)?.props || {}
+                    return (
+                      <CodeBlock className={childProps.className}>
+                        {childProps.children}
+                      </CodeBlock>
+                    )
+                  },
                   code: ({ className, children, ...props }) => {
                     const isInline = !className
                     if (isInline) {

@@ -5,6 +5,10 @@ import { DynamicBackground } from '@/components/background/DynamicBackground'
 import { Live2DWidget } from '@/components/molecules/Live2DWidget'
 import { Toolbox } from '@/components/home/Toolbox'
 import { FloatingMiniPlayer } from '@/components/home/FloatingMiniPlayer'
+import { CustomCursor } from '@/components/home/CustomCursor'
+import { LoadingAnimation } from '@/components/home/LoadingAnimation'
+import { ImageLightbox } from '@/components/home/ImageLightbox'
+import { FloatingBackToTop } from '@/components/home/FloatingBackToTop'
 import { Layout } from '@/components/layout/Layout'
 import Home from '@/pages/Home'
 import ArticleDetail from '@/pages/ArticleDetail'
@@ -37,6 +41,15 @@ export default function App() {
 
   return (
     <>
+      {/* 首次加载动画 */}
+      <LoadingAnimation />
+
+      {/* 自定义鼠标光标（桌面端） */}
+      {!isAdmin && <CustomCursor />}
+
+      {/* 全局图片灯箱 */}
+      {!isAdmin && <ImageLightbox />}
+
       {/* 全局背景 - 始终动态（后台页面隐藏） */}
       {!isAdmin && <DynamicBackground />}
 
@@ -83,6 +96,9 @@ export default function App() {
 
       {/* 左下角迷你音乐播放器（前台显示） */}
       {!isAdmin && <FloatingMiniPlayer />}
+
+      {/* 返回顶部按钮（前台显示） */}
+      {!isAdmin && <FloatingBackToTop />}
 
       {/* Live2D 看板娘（右下角，前台显示） */}
       {!isAdmin && <Live2DWidget />}

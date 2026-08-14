@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Calendar, Code, Heart, Github, Mail, ExternalLink, Star, GitFork, Loader2 } from 'lucide-react'
+import { MapPin, Calendar, Code, Heart, Github, Mail, ExternalLink, Star, GitFork, Loader2, Tv, PlayCircle, CheckCircle, Clock, Trophy, RefreshCw } from 'lucide-react'
 import { GlassCard } from '@/components/molecules/GlassCard'
 import { SocialLinks } from '@/components/molecules/SocialLinks'
-import { ARTICLES } from '@/data/articles'
-import { FRIENDS } from '@/data/friends'
+import { ARTICLES, loadArticles } from '@/data/articles'
+import { FRIENDS, loadFriends } from '@/data/friends'
 import { getCurrentAvatar, FALLBACK_AVATAR } from '@/data/avatars'
 
 interface GitHubRepo {
@@ -21,12 +21,66 @@ interface GitHubRepo {
   pushed_at: string
 }
 
+interface AnimeItem {
+  mal_id: number
+  title: string
+  title_japanese?: string
+  images: { jpg: { large_image_url: string; image_url: string } }
+  score?: number
+  episodes?: number
+  genres?: { name: string }[]
+  studios?: { name: string }[]
+  synopsis?: string
+  airing?: boolean
+  type?: string
+}
+
+interface MyAnime {
+  title: string
+  titleJp: string
+  cover: string
+  score: number
+  status: 'watching' | 'completed' | 'planned'
+  progress: string
+  genres: string[]
+  comment: string
+}
+
+const FALLBACK_SEASONAL: AnimeItem[] = [
+  { mal_id: 52991, title: '葬送的芙莉莲', title_japanese: '葬送のフリーレン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg' } }, score: 9.0, episodes: 28, type: 'TV', airing: true, genres: [{ name: 'Adventure' }, { name: 'Fantasy' }] },
+  { mal_id: 54492, title: '药屋少女的呢喃', title_japanese: '薬屋のひとりごと', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg' } }, score: 8.8, episodes: 24, type: 'TV', airing: true, genres: [{ name: 'Mystery' }, { name: 'Drama' }] },
+  { mal_id: 50602, title: '间谍过家家 第二季', title_japanese: 'SPY×FAMILY Season 2', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg' } }, score: 8.5, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Comedy' }, { name: 'Action' }] },
+  { mal_id: 51009, title: '咒术回战 第二季', title_japanese: '呪術廻戦 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg' } }, score: 8.7, episodes: 23, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Supernatural' }] },
+  { mal_id: 33352, title: '紫罗兰永恒花园', title_japanese: 'ヴァイオレット・エヴァーガーデン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg' } }, score: 8.9, episodes: 13, type: 'TV', airing: false, genres: [{ name: 'Drama' }, { name: 'Fantasy' }] },
+  { mal_id: 59978, title: '葬送的芙莉莲 第二季', title_japanese: '葬送のフリーレン 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg' } }, score: 9.0, episodes: 24, type: 'TV', airing: true, genres: [{ name: 'Adventure' }, { name: 'Fantasy' }] },
+  { mal_id: 57906, title: 'Dan Da Dan', title_japanese: 'ダンダダン', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1659/142039.jpg' } }, score: 8.6, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Comedy' }, { name: 'Supernatural' }] },
+  { mal_id: 52204, title: '我独自升级', title_japanese: '俺だけレベルアップな件', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1926/140799.jpg' } }, score: 8.3, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
+  { mal_id: 54102, title: '怪兽8号', title_japanese: '怪獣8号', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1456/141904.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1456/141904.jpg' } }, score: 8.0, episodes: 12, type: 'TV', airing: false, genres: [{ name: 'Action' }, { name: 'Sci-Fi' }] },
+  { mal_id: 53223, title: '青之箱', title_japanese: 'アオのハコ', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1409/142715.jpg' } }, score: 8.2, episodes: 12, type: 'TV', airing: true, genres: [{ name: 'Romance' }, { name: 'Sports' }] },
+  { mal_id: 52743, title: 'Delicious in Dungeon', title_japanese: 'ダンジョン飯', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1872/137024.jpg' } }, score: 8.4, episodes: 24, type: 'TV', airing: false, genres: [{ name: 'Adventure' }, { name: 'Comedy' }] },
+  { mal_id: 55701, title: '神之塔 第二季', title_japanese: '神之塔 第2期', images: { jpg: { large_image_url: 'https://cdn.myanimelist.net/images/anime/1384/137024.jpg', image_url: 'https://cdn.myanimelist.net/images/anime/1384/137024.jpg' } }, score: 8.0, episodes: 26, type: 'TV', airing: true, genres: [{ name: 'Action' }, { name: 'Adventure' }] },
+]
+
 export default function My() {
   // 与首页 ProfileCard 共用同一头像（localStorage 持久化，保持两处一致）
   const avatar = getCurrentAvatar()
-  const [activeTab, setActiveTab] = useState<'about' | 'skills' | 'projects' | 'links'>('about')
+  const [activeTab, setActiveTab] = useState<'about' | 'anime' | 'projects' | 'links'>('about')
   const [repos, setRepos] = useState<GitHubRepo[]>([])
   const [loadingRepos, setLoadingRepos] = useState(true)
+  const [seasonalAnime, setSeasonalAnime] = useState<AnimeItem[]>([])
+  const [loadingAnime, setLoadingAnime] = useState(true)
+  const [animeFilter, setAnimeFilter] = useState<'all' | 'tv' | 'movie' | 'ova'>('all')
+  const [failedCovers, setFailedCovers] = useState<Set<number>>(new Set())
+  // 文章与友链计数：静态数据作为初始值，异步加载合并后台发布的数据
+  const [articles, setArticles] = useState(ARTICLES)
+  const [friends, setFriends] = useState(FRIENDS)
+
+  useEffect(() => {
+    loadArticles().then(setArticles)
+  }, [])
+  useEffect(() => {
+    loadFriends().then(setFriends)
+  }, [])
 
   const [uptime, setUptime] = useState('0天 0小时 0分钟')
   useEffect(() => {
@@ -64,14 +118,112 @@ export default function My() {
     fetchRepos()
   }, [])
 
-  const skills = [
-    { name: 'HTML/CSS', level: 85, color: 'from-orange-400 to-orange-600' },
-    { name: 'JavaScript', level: 75, color: 'from-yellow-400 to-yellow-600' },
-    { name: 'React', level: 70, color: 'from-sky-400 to-sky-600' },
-    { name: 'TypeScript', level: 65, color: 'from-blue-400 to-blue-600' },
-    { name: 'Python', level: 60, color: 'from-green-400 to-green-600' },
-    { name: 'Node.js', level: 55, color: 'from-emerald-400 to-emerald-600' },
+  useEffect(() => {
+    const fetchSeasonal = async () => {
+      try {
+        const now = new Date()
+        const month = now.getMonth() + 1
+        let season = 'winter'
+        if (month >= 4 && month <= 6) season = 'spring'
+        else if (month >= 7 && month <= 9) season = 'summer'
+        else if (month >= 10 && month <= 12) season = 'fall'
+        const year = now.getFullYear()
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 6000)
+        const res = await fetch(`https://api.jikan.moe/v4/seasons/${year}/${season}?limit=24&order_by=score&sort=desc`, {
+          signal: controller.signal,
+        })
+        clearTimeout(timeout)
+        const data = await res.json()
+        if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+          setSeasonalAnime(data.data)
+        } else {
+          setSeasonalAnime(FALLBACK_SEASONAL)
+        }
+      } catch (err) {
+        console.error('Failed to fetch seasonal anime:', err)
+        setSeasonalAnime(FALLBACK_SEASONAL)
+      } finally {
+        setLoadingAnime(false)
+      }
+    }
+    fetchSeasonal()
+  }, [])
+
+  const seasonName = (() => {
+    const m = new Date().getMonth() + 1
+    if (m >= 1 && m <= 3) return '冬季'
+    if (m >= 4 && m <= 6) return '春季'
+    if (m >= 7 && m <= 9) return '夏季'
+    return '秋季'
+  })()
+
+  const myAnimeList: MyAnime[] = [
+    {
+      title: '葬送的芙莉莲',
+      titleJp: '葬送のフリーレン',
+      cover: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg',
+      score: 9.0,
+      status: 'watching',
+      progress: '28/28',
+      genres: ['冒险', '奇幻', '治愈'],
+      comment: '看完后对时间和生命有了新的理解，神作。',
+    },
+    {
+      title: '间谍过家家 第二季',
+      titleJp: 'SPY×FAMILY Season 2',
+      cover: 'https://cdn.myanimelist.net/images/anime/1111/127508.jpg',
+      score: 8.5,
+      status: 'watching',
+      progress: '12/12',
+      genres: ['喜剧', '日常', '治愈'],
+      comment: '阿尼亚太可爱了！每集都在笑。',
+    },
+    {
+      title: '药屋少女的呢喃',
+      titleJp: '薬屋のひとりごと',
+      cover: 'https://cdn.myanimelist.net/images/anime/1708/138033.jpg',
+      score: 8.8,
+      status: 'watching',
+      progress: '24/24',
+      genres: ['悬疑', '古装', '剧情'],
+      comment: '猫猫太帅了，推理剧情很过瘾。',
+    },
+    {
+      title: '咒术回战 第二季',
+      titleJp: '呪術廻戦 第2期',
+      cover: 'https://cdn.myanimelist.net/images/anime/1792/138022.jpg',
+      score: 8.7,
+      status: 'completed',
+      progress: '23/23',
+      genres: ['战斗', '超自然', '热血'],
+      comment: '渋谷事変太燃了，作画炸裂。',
+    },
+    {
+      title: '紫罗兰永恒花园',
+      titleJp: 'ヴァイオレット・エヴァーガーデン',
+      cover: 'https://cdn.myanimelist.net/images/anime/1795/95088.jpg',
+      score: 8.9,
+      status: 'completed',
+      progress: '13/13',
+      genres: ['治愈', '剧情', '感人'],
+      comment: '每一帧都是壁纸，看哭了无数次。',
+    },
+    {
+      title: '葬送的芙莉莲 第二季',
+      titleJp: '葬送のフリーレン 第2期',
+      cover: 'https://cdn.myanimelist.net/images/anime/1089/148301.jpg',
+      score: 9.0,
+      status: 'planned',
+      progress: '0/24',
+      genres: ['冒险', '奇幻', '治愈'],
+      comment: '期待已久，准备补番！',
+    },
   ]
+
+  const filteredSeasonal = animeFilter === 'all'
+    ? seasonalAnime
+    : seasonalAnime.filter(a => (a.type || 'TV').toLowerCase().includes(animeFilter))
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -106,7 +258,7 @@ export default function My() {
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {[
           { key: 'about' as const, label: '关于我', icon: '👋' },
-          { key: 'skills' as const, label: '技能', icon: '💻' },
+          { key: 'anime' as const, label: '番组', icon: '📺' },
           { key: 'projects' as const, label: '开源项目', icon: '🚀' },
           { key: 'links' as const, label: '联系', icon: '📬' },
         ].map((tab) => (
@@ -152,7 +304,7 @@ export default function My() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <GlassCard className="p-5 text-center">
                 <div className="text-3xl mb-2">📝</div>
-                <div className="text-2xl font-black text-indigo-500">{ARTICLES.length}</div>
+                <div className="text-2xl font-black text-indigo-500">{articles.length}</div>
                 <div className="text-xs text-gray-500 mt-1">篇文章</div>
               </GlassCard>
               <GlassCard className="p-5 text-center">
@@ -162,7 +314,7 @@ export default function My() {
               </GlassCard>
               <GlassCard className="p-5 text-center">
                 <div className="text-3xl mb-2">🔗</div>
-                <div className="text-2xl font-black text-pink-500">{FRIENDS.length}</div>
+                <div className="text-2xl font-black text-pink-500">{friends.length}</div>
                 <div className="text-xs text-gray-500 mt-1">条友链</div>
               </GlassCard>
               <GlassCard className="p-5 text-center">
@@ -174,37 +326,171 @@ export default function My() {
           </div>
         )}
 
-        {/* Skills */}
-        {activeTab === 'skills' && (
+        {/* Anime 番组 */}
+        {activeTab === 'anime' && (
           <div className="space-y-6 animate-fade-in">
+            {/* 我的追番 */}
             <GlassCard className="p-6 sm:p-8">
-              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Code size={20} className="text-blue-500" />正在学习
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <Tv size={20} className="text-purple-500" />我的追番
               </h2>
-              <div className="space-y-5">
-                {skills.map((skill) => (
-                  <div key={skill.name}>
-                    <div className="flex justify-between mb-2">
-                      <span className="text-sm font-bold">{skill.name}</span>
-                      <span className="text-sm text-gray-500">{skill.level}%</span>
+              <p className="text-sm text-gray-500 mb-5">记录我看过的和正在追的番剧</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myAnimeList.map((anime) => (
+                  <div key={anime.title} className="card rounded-xl overflow-hidden hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 group hover:-translate-y-1">
+                    <div className="flex gap-3 p-3">
+                      <div className="relative shrink-0">
+                        <img
+                          src={anime.cover}
+                          alt={anime.title}
+                          className="rounded-lg object-cover shadow-md"
+                          loading="lazy"
+                          onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.3' }}
+                          style={{ width: '64px', height: '90px' }}
+                        />
+                        <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shadow ${
+                          anime.status === 'watching' ? 'bg-green-500' :
+                          anime.status === 'completed' ? 'bg-blue-500' : 'bg-orange-400'
+                        }`}>
+                          {anime.status === 'watching' ? '▶' : anime.status === 'completed' ? '✓' : '★'}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-sm text-gray-800 dark:text-gray-200 group-hover:text-purple-500 transition-colors line-clamp-1">
+                          {anime.title}
+                        </h3>
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-1">{anime.titleJp}</p>
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="flex items-center gap-0.5 text-xs font-bold text-amber-500">
+                            <Star size={10} className="fill-amber-500" />{anime.score}
+                          </span>
+                          <span className="text-[10px] text-gray-400">{anime.progress}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {anime.genres.map(g => (
+                            <span key={g} className="px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-500 text-[9px] font-bold">{g}</span>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                      <div className={`h-full rounded-full bg-gradient-to-r ${skill.color} transition-all duration-1000`}
-                        style={{ width: `${skill.level}%` }} />
-                    </div>
+                    <p className="px-3 pb-3 text-xs text-gray-500 dark:text-gray-400 line-clamp-2 italic">
+                      "{anime.comment}"
+                    </p>
                   </div>
                 ))}
               </div>
+              {/* 状态图例 */}
+              <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-green-500"></span><PlayCircle size={12} />追番中</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500"></span><CheckCircle size={12} />已追完</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-orange-400"></span><Clock size={12} />想看</span>
+              </div>
             </GlassCard>
+
+            {/* 当季新番 */}
             <GlassCard className="p-6 sm:p-8">
-              <h2 className="text-xl font-bold mb-4">🛠️ 常用工具</h2>
-              <div className="flex flex-wrap gap-2">
-                {['VS Code', 'Git', 'Vercel', 'Figma', 'Notion', 'ChatGPT'].map((tool) => (
-                  <span key={tool} className="px-3 py-1.5 rounded-lg text-sm font-medium card text-gray-600 dark:text-gray-400 hover:text-indigo-500 transition-colors cursor-default">
-                    {tool}
-                  </span>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Trophy size={20} className="text-amber-500" />{new Date().getFullYear()}年{seasonName}新番
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => { setLoadingAnime(true); window.location.reload() }}
+                  className="text-sm text-indigo-500 hover:underline font-medium flex items-center gap-1"
+                >
+                  <RefreshCw size={14} />刷新
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">数据来源 MyAnimeList，按评分排序</p>
+
+              {/* 类型筛选 */}
+              <div className="flex gap-2 mb-4">
+                {([
+                  { key: 'all' as const, label: '全部' },
+                  { key: 'tv' as const, label: 'TV' },
+                  { key: 'movie' as const, label: '剧场版' },
+                  { key: 'ova' as const, label: 'OVA' },
+                ]).map(f => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setAnimeFilter(f.key)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                      animeFilter === f.key
+                        ? 'bg-purple-500 text-white shadow'
+                        : 'card text-gray-500 hover:text-purple-500'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
                 ))}
               </div>
+
+              {loadingAnime ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 size={32} className="text-purple-500 animate-spin" />
+                  <span className="ml-3 text-gray-500">加载番组中...</span>
+                </div>
+              ) : filteredSeasonal.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredSeasonal.slice(0, 16).map((anime) => (
+                    <div key={anime.mal_id} className="card rounded-xl overflow-hidden hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 group hover:-translate-y-1">
+                      <div className="relative overflow-hidden">
+                        {failedCovers.has(anime.mal_id) ? (
+                          <div className="w-full aspect-[3/4] flex items-center justify-center bg-gradient-to-br from-purple-500/40 via-pink-500/30 to-indigo-500/40 group-hover:scale-105 transition-transform duration-500">
+                            <span className="text-white/90 text-sm font-bold text-center px-3 line-clamp-3 drop-shadow-md">{anime.title}</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url}
+                            alt={anime.title}
+                            className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-500"
+                            loading="lazy"
+                            onError={() => setFailedCovers(prev => new Set(prev).add(anime.mal_id))}
+                          />
+                        )}
+                        {anime.airing && (
+                          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-red-500/90 text-white text-[9px] font-bold backdrop-blur-sm">
+                            ON AIR
+                          </div>
+                        )}
+                        {anime.score && (
+                          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-sm text-amber-400 text-xs font-bold flex items-center gap-0.5">
+                            <Star size={8} className="fill-amber-400" />{anime.score}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-2.5">
+                        <h3 className="font-bold text-xs text-gray-800 dark:text-gray-200 group-hover:text-purple-500 transition-colors line-clamp-2 min-h-[32px]">
+                          {anime.title}
+                        </h3>
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          {anime.type && (
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 text-[9px] font-bold">
+                              {anime.type}
+                            </span>
+                          )}
+                          {anime.episodes && (
+                            <span className="text-[10px] text-gray-400">{anime.episodes}集</span>
+                          )}
+                        </div>
+                        {anime.genres && anime.genres.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {anime.genres.slice(0, 2).map(g => (
+                              <span key={g.name} className="text-[9px] text-gray-400">{g.name}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Tv size={40} className="mx-auto mb-3 opacity-30" />
+                  暂时无法获取当季番组数据
+                </div>
+              )}
             </GlassCard>
           </div>
         )}

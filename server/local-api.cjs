@@ -29,6 +29,7 @@ const FRIENDS_APPROVED_FILE = path.join(DATA_DIR, 'friends-approved.json')
 const ADMIN_TOKEN = process.env.BLOG_ADMIN_TOKEN || 'kirameku-admin'
 // 博主邮箱：使用该邮箱登录评论的用户视为博主（可删任意评论、显示博主徽章）
 const ADMIN_MAIL = process.env.BLOG_ADMIN_MAIL || 'jaychou8421@gmail.com'
+const ADMIN_NICK = 'jay'
 // 头像池：混合多种风格，增加多样性
 const AVATAR_POOL = [
   ...Array.from({ length: 24 }, (_, i) => `/avatars/dmoe_${String(i + 1).padStart(2, '0')}.jpg`),
@@ -281,9 +282,10 @@ function createComment(body, req) {
   const parentId = String(body.parentId || '').trim().slice(0, 64)
 
   if (!nick) return { error: '请填写昵称' }
+  if (!mail) return { error: '请填写邮箱' }
   if (!content) return { error: '评论内容不能为空' }
   if (!p) return { error: '缺少评论路径' }
-  if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { error: '邮箱格式不正确' }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { error: '邮箱格式不正确' }
 
   const cid = clientId(req)
   const now = Date.now()
@@ -324,7 +326,7 @@ function createComment(body, req) {
     createdAt: new Date().toISOString(),
     likedBy: [],
     ownerToken: token,
-    admin: token === ADMIN_TOKEN || (mail && mail.toLowerCase() === ADMIN_MAIL.toLowerCase()),
+    admin: token === ADMIN_TOKEN || (mail && mail.toLowerCase() === ADMIN_MAIL.toLowerCase() && nick === ADMIN_NICK),
     cid,
   }
 
@@ -529,7 +531,7 @@ function removeFriendApplication(body, req) {
  * 服务端代理 Meting-API：跟随 302 重定向，将最终音频/图片/歌词字节流回传给浏览器。
  * 解决 <audio> 元素跟随跨域 302 重定向时 ERR_ABORTED 的问题。
  */
-const METING_BASE = 'http://47.104.189.4/music/'
+const METING_BASE = 'https://meting.naihee.com/api'
 // 缓存已解析的 CDN URL（避免每次 Range 请求都走 Meting API 重定向）
 const musicUrlCache = new Map()
 const MUSIC_URL_TTL = 30 * 60 * 1000 // 30 分钟
@@ -537,8 +539,11 @@ const MUSIC_URL_TTL = 30 * 60 * 1000 // 30 分钟
 function proxyMusic(req, res, url, depth) {
   if (depth > 5) { if (!res.headersSent) send(res, 502, { error: 'too many redirects' }); return }
   const mod = url.startsWith('https') ? https : http
-  const opts = {}
-  if (req.headers.range) opts.headers = { Range: req.headers.range }
+  const opts = { headers: {
+    ...(req.headers.range ? { Range: req.headers.range } : {}),
+    Referer: 'https://music.163.com/',
+    'User-Agent': 'Mozilla/5.0 (compatible; BlogLocal/1.0)',
+  } }
 
   let upstream
   const cleanup = () => { if (upstream) upstream.destroy() }
@@ -660,6 +665,19 @@ function handleLocalApi(req, res) {
       const type = q.get('type') || 'url'
       const id = q.get('id')
       if (!id) return send(res, 400, { error: 'missing id' })
+
+      // type=pic: meting.naihee.com 的 type=pic 返回 500，改用 api.injahow.cn
+      if (type === 'pic') {
+        const picMetingUrl = `https://api.injahow.cn/meting/?server=netease&type=pic&id=${encodeURIComponent(id)}`
+        const cached = musicUrlCache.get(picMetingUrl)
+        if (cached && Date.now() - cached.ts < MUSIC_URL_TTL) {
+          proxyMusic(req, res, cached.url, 0)
+        } else {
+          proxyMusic(req, res, picMetingUrl, 0)
+        }
+        return true
+      }
+
       const metingUrl = `${METING_BASE}?server=netease&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`
       // 优先使用缓存的 CDN URL（跳过 Meting API 重定向，加速 Range 请求）
       const cached = musicUrlCache.get(metingUrl)

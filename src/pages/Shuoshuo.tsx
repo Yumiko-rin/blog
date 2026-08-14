@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { MessageCircle, Heart } from 'lucide-react'
-import { SHUOSHUO, type Shuoshuo } from '@/data/shuoshuo'
+import { SHUOSHUO, loadShuoshuo, type Shuoshuo } from '@/data/shuoshuo'
 import { CommentSection } from '@/components/molecules/CommentSection'
 
 /* ===== 说说点赞（localStorage 持久化） ===== */
@@ -119,7 +119,14 @@ function ShuoshuoItem({ item }: { item: Shuoshuo }) {
  * 该模块不会出现在首页（首页只展示文章）。
  */
 export default function Shuoshuo() {
-  const groups = useMemo(() => groupByDate(SHUOSHUO), [])
+  const [list, setList] = useState(SHUOSHUO)
+
+  // 异步加载说说（后台发布的 + 静态内置合并），静态数据作为初始值避免空白闪烁
+  useEffect(() => {
+    loadShuoshuo().then(setList)
+  }, [])
+
+  const groups = useMemo(() => groupByDate(list), [list])
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

@@ -95,7 +95,14 @@ export function useAudioPlayer() {
   /* ===== 音频事件监听：回写状态 ===== */
   useEffect(() => {
     const onTimeUpdate = () => setCurrentTime(audio.currentTime)
-    const onLoadedMeta = () => setDuration(audio.duration || 0)
+    const onLoadedMeta = () => {
+      const d = audio.duration || 0
+      setDuration(d)
+      if (d > 0) {
+        const song = useMusicStore.getState().currentSong
+        if (song) useMusicStore.getState().updateSongDuration(song.id, d)
+      }
+    }
     const onEnded = () => handleNext(true)
     const onPlay = () => setIsPlaying(true)
     const onPause = () => {

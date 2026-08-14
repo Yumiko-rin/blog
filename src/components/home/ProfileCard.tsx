@@ -1,37 +1,55 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getCurrentAvatar, FALLBACK_AVATAR } from '@/data/avatars'
+import { FestivalAvatar } from '@/components/home/FestivalAvatar'
+import { SignatureDisplay } from '@/components/home/SignatureDisplay'
+import { FontSelector } from '@/components/home/FontSelector'
+import { ARTICLES } from '@/data/articles'
 
 /**
- * ProfileCard 个人信息卡片
- * 左侧栏顶部的用户信息
- * 头像与「我的」页面保持一致（getCurrentAvatar，localStorage 共享）
+ * ProfileCard 增强版个人信息卡片
+ * 集成节日头像边框、打字机签名、字体选择器
+ * 新增文章/标签/浏览统计数据
  */
 export function ProfileCard() {
-  const [avatar] = useState<string>(() => getCurrentAvatar())
+  const totalArticles = ARTICLES.length
+  const totalTags = new Set(ARTICLES.flatMap(a => a.tags)).size
+  const totalViews = ARTICLES.reduce((sum, a) => sum + (a.views || 0), 0)
 
   return (
     <div className="widget-card p-4">
       <Link to="/my" className="flex flex-col items-center gap-3">
-        {/* 头像 - 改进版渐变旋转边框 */}
-        <div className="avatar-frame relative">
-          <img
-            src={avatar}
-            alt="avatar"
-            onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_AVATAR }}
-            className="relative w-20 h-20 rounded-full object-cover border-2 border-white/50 shadow-lg"
-          />
-          {/* 在线状态 */}
-          <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-400 rounded-full border-2 border-white shadow-sm" />
-        </div>
+        {/* 节日头像边框 */}
+        <FestivalAvatar size={80} />
         <div className="text-center">
           <div className="font-bold rainbow-name text-lg">喵音</div>
           <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">用代码和音乐构建数字花园</div>
         </div>
       </Link>
 
-      {/* 联系方式 - 使用 My 页面的社交链接 */}
-      <div className="flex justify-center gap-2 mt-4">
+      {/* 打字机签名 */}
+      <div className="mt-3 mb-3">
+        <SignatureDisplay />
+      </div>
+
+      {/* 统计数据 */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="text-center rounded-lg bg-[rgb(var(--bg-secondary))] py-2">
+          <div className="text-lg font-bold text-accent tabular-nums">{totalArticles}</div>
+          <div className="text-[10px] text-[rgb(var(--text-secondary))]">文章</div>
+        </div>
+        <div className="text-center rounded-lg bg-[rgb(var(--bg-secondary))] py-2">
+          <div className="text-lg font-bold text-accent tabular-nums">{totalTags}</div>
+          <div className="text-[10px] text-[rgb(var(--text-secondary))]">标签</div>
+        </div>
+        <div className="text-center rounded-lg bg-[rgb(var(--bg-secondary))] py-2">
+          <div className="text-lg font-bold text-accent tabular-nums">
+            {totalViews > 999 ? `${(totalViews / 1000).toFixed(1)}k` : totalViews}
+          </div>
+          <div className="text-[10px] text-[rgb(var(--text-secondary))]">浏览</div>
+        </div>
+      </div>
+
+      {/* 联系方式 + 字体选择器 */}
+      <div className="flex justify-center gap-2">
         <a href="https://github.com" target="_blank" rel="noopener noreferrer"
           className="w-9 h-9 rounded-full bg-[rgb(var(--bg-secondary))] flex items-center justify-center
             hover:bg-accent/10 hover:scale-110 transition-all duration-200"
@@ -56,6 +74,8 @@ export function ProfileCard() {
             <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
           </svg>
         </a>
+        {/* 字体选择器 */}
+        <FontSelector />
       </div>
     </div>
   )

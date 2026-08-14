@@ -9,7 +9,7 @@
   margin-left: -100px;
   padding: 5px 2px 5px 5px;
   position: fixed;
-  transition: margin-left 1s;
+  transition: margin-left 0.4s ease-in-out;
   width: 60px;
   writing-mode: vertical-rl;
 }
@@ -29,7 +29,7 @@
   margin-bottom: 0px;
   position: fixed;
   transform: translateY(0);
-  transition: transform 0.3s ease-in-out, bottom 3s ease-in-out;
+  transition: transform 0.3s ease-in-out, bottom 0.6s ease-in-out;
   z-index: 9999;
 }
 
@@ -48,7 +48,7 @@
   padding: 5px 10px;
   position: absolute;
   text-overflow: ellipsis;
-  transition: opacity 1s;
+  transition: opacity 0.3s;
   width: 280px;
   word-break: break-all;
   top: -60px;
@@ -100,7 +100,7 @@
   position: absolute;
   left: 10px;
   top: 50px;
-  transition: opacity 1s;
+  transition: opacity 0.3s;
   background: rgba(255,255,255,0.1);
   border-radius: 8px;
   padding: 4px 2px;

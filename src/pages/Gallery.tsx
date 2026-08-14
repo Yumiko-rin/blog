@@ -115,11 +115,14 @@ const ALBUMS: Album[] = [
 
 // ========== 照片卡片（拍立得风格，与原站一致）==========
 
-// 生成低质量占位图 URL（七牛云 imageView2 格式：20px 宽 / 质量 10）
-const getLqip = (url: string) => `${url}?imageView2/2/w/20/q/10`
+// 低质量占位图（10px 极小缩略图，用于模糊背景）
+const getLqip = (url: string) => `${url}?imageView2/2/w/10/q/10`
+// 中等质量缩略图（600px 宽，用于网格展示，比原图小很多）
+const getThumb = (url: string) => `${url}?imageView2/2/w/600/q/75`
 
 function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
+  const [errored, setErrored] = useState(false)
 
   const rotation = (() => {
     const seed = photo.id.charCodeAt(0) + photo.id.charCodeAt(photo.id.length - 1)
@@ -130,9 +133,9 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30, rotate: rotation * 2 }}
+      initial={{ opacity: 0, y: 20, rotate: rotation * 2 }}
       animate={{ opacity: 1, y: 0, rotate: rotation }}
-      transition={{ duration: 0.6, delay: index * 0.08, ease: 'easeOut' }}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.3), ease: 'easeOut' }}
       whileHover={{ rotate: 0, scale: 1.03, zIndex: 10, transition: { type: 'spring', stiffness: 300, damping: 20 } }}
       onClick={onClick}
       className="relative cursor-pointer group break-inside-avoid mb-3 md:mb-5"
@@ -141,30 +144,40 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
       {/* 照片外框（拍立得白边） */}
       <div className="relative bg-white dark:bg-slate-800 p-2 pb-6 md:p-2.5 md:pb-8 rounded-sm shadow-lg dark:shadow-black/30 group-hover:shadow-2xl transition-shadow duration-300">
         <div className={`relative overflow-hidden rounded-[1px] ${isLandscape ? 'aspect-[4/3]' : 'aspect-[4/5]'}`}>
-          {/* LQIP 模糊占位图：先加载极小图，模糊放大作为背景 */}
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-slate-200 dark:bg-slate-700"
-            style={{
-              backgroundImage: `url(${getLqip(photo.url)})`,
-              filter: 'blur(20px)',
-              transform: 'scale(1.1)',
-            }}
-          />
-          {/* 高清图：加载完成后从 opacity-0 / blur(10px) 淡入到 opacity-100 / blur(0) */}
-          <img
-            src={photo.url}
-            alt={photo.caption || '照片'}
-            loading="lazy"
-            decoding="async"
-            fetchPriority="low"
-            onLoad={() => setLoaded(true)}
-            className="w-full h-full object-cover group-hover:scale-105"
-            style={{
-              opacity: loaded ? 1 : 0,
-              filter: loaded ? 'blur(0px)' : 'blur(10px)',
-              transition: 'opacity 0.7s ease, filter 0.7s ease, transform 0.5s ease',
-            }}
-          />
+          {/* LQIP 模糊占位图 */}
+          {!errored && (
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-slate-200 dark:bg-slate-700"
+              style={{
+                backgroundImage: `url(${getLqip(photo.url)})`,
+                filter: 'blur(15px)',
+                transform: 'scale(1.1)',
+              }}
+            />
+          )}
+          {/* 缩略图：加载完成后淡入，比原图小5-10倍 */}
+          {!errored && (
+            <img
+              src={getThumb(photo.url)}
+              alt={photo.caption || '照片'}
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+              onLoad={() => setLoaded(true)}
+              onError={() => setErrored(true)}
+              className="w-full h-full object-cover group-hover:scale-105"
+              style={{
+                opacity: loaded ? 1 : 0,
+                filter: loaded ? 'blur(0px)' : 'blur(8px)',
+                transition: 'opacity 0.5s ease, filter 0.5s ease, transform 0.5s ease',
+              }}
+            />
+          )}
+          {errored && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+              <Camera className="w-8 h-8 text-slate-400" />
+            </div>
+          )}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
         </div>
 
@@ -234,13 +247,24 @@ function AlbumCard({ album, isExpanded, onToggle, onPhotoClick }: {
               transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             >
               <div className="relative w-full h-full rounded-xl overflow-hidden shadow-lg ring-1 ring-black/5 dark:ring-white/10">
+                {/* LQIP 模糊背景 */}
+                <div
+                  className="absolute inset-0 bg-cover bg-center bg-slate-300 dark:bg-slate-700"
+                  style={{
+                    backgroundImage: `url(${getLqip(photo.url)})`,
+                    filter: 'blur(15px)',
+                    transform: 'scale(1.1)',
+                  }}
+                />
+                {/* 缩略图 */}
                 <img
-                  src={photo.url}
+                  src={getThumb(photo.url)}
                   alt={photo.caption || album.title}
-                  className="w-full h-full object-cover"
+                  className="relative w-full h-full object-cover"
                   loading="lazy"
                   decoding="async"
                   fetchPriority="high"
+                  onError={(e) => { e.currentTarget.style.opacity = '0' }}
                 />
               </div>
             </motion.div>
@@ -388,7 +412,8 @@ function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
           >
             <img src={photo.url} alt={photo.caption || '照片'}
               decoding="async"
-              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
+              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl"
+              onError={(e) => { e.currentTarget.src = getThumb(photo.url) }} />
             {photo.caption && (
               <div className="absolute -bottom-10 left-0 right-0 text-center">
                 <span className="text-sm text-white/70 font-serif italic">{photo.caption}</span>

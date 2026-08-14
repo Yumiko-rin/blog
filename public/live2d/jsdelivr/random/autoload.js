@@ -26,10 +26,12 @@ function loadExternalResource(url, type) {
   });
 }
 
-// 设置默认模型为 za/zastavam21_2104/normal (index 20)
-if (!localStorage.getItem("modelId")) {
-  localStorage.setItem("modelId", "20");
+// 设置默认模型为 kp31 (index 0)
+// 版本号 v6：强制重置旧的 localStorage 缓存，确保新访客和老访客都看到 kp31
+if (!localStorage.getItem("modelId_v6")) {
+  localStorage.setItem("modelId", "0");
   localStorage.setItem("modelTexturesId", "0");
+  localStorage.setItem("modelId_v6", "1");
 }
 
 // 加载 waifu.css live2d.min.js waifu-tips.js
@@ -37,7 +39,7 @@ if (screen.width >= 768) {
   Promise.all([
     loadExternalResource(live2d_path + 'css/right.css', 'css'),
     loadExternalResource(live2d_path + 'live2d.min.js', 'js'),
-    loadExternalResource(live2d_path + 'jsdelivr/random/waifu-tips.js?v=4', 'js'),
+    loadExternalResource(live2d_path + 'jsdelivr/random/waifu-tips.js?v=6', 'js'),
   ]).then(() => {
     // 配置选项的具体用法见 README.md
     initWidget({

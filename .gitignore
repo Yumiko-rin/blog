@@ -42,3 +42,6 @@ vite.config.d.ts
 *.timestamp-*.mjs
 *测试*.html
 waline-admin.js
+.trae-html-share-packages/
+component-selector/
+tool-selector/

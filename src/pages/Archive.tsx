@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Calendar, Clock, Eye, Heart, Tag } from 'lucide-react'
-import { ARTICLES } from '@/data/articles'
+import { ARTICLES, loadArticles } from '@/data/articles'
 import { GlassCard } from '@/components/molecules/GlassCard'
 import { formatDate, formatNumber } from '@/utils/format'
 import { getArticleViews, getArticleLikes } from '@/utils/articleMetrics'
@@ -9,17 +9,23 @@ import { getArticleViews, getArticleLikes } from '@/utils/articleMetrics'
  * Archive 文章归档页
  */
 export default function Archive() {
+  const [articles, setArticles] = useState(ARTICLES)
+
+  // 异步加载文章（后台发布的 + 静态内置合并），静态数据作为初始值避免空白闪烁
+  useEffect(() => {
+    loadArticles().then(setArticles)
+  }, [])
 
   const grouped = useMemo(() => {
-    const sorted = [...ARTICLES].sort((a, b) => b.date.localeCompare(a.date))
-    const groups: Record<string, typeof ARTICLES> = {}
+    const sorted = [...articles].sort((a, b) => b.date.localeCompare(a.date))
+    const groups: Record<string, typeof articles> = {}
     sorted.forEach((article) => {
       const year = article.date.slice(0, 4)
       if (!groups[year]) groups[year] = []
       groups[year].push(article)
     })
     return groups
-  }, [])
+  }, [articles])
 
   const years = Object.keys(grouped).sort((a, b) => Number(b) - Number(a))
 
@@ -27,7 +33,7 @@ export default function Archive() {
     <div className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-3xl font-bold sm:text-4xl text-[rgb(var(--text-primary))]">📝 文章归档</h1>
-        <p className="mt-2 text-[rgb(var(--text-secondary))]">共 {ARTICLES.length} 篇文章，记录学习与思考</p>
+        <p className="mt-2 text-[rgb(var(--text-secondary))]">共 {articles.length} 篇文章，记录学习与思考</p>
       </header>
 
       <div className="relative">

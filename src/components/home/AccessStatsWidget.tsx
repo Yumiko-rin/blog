@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Eye, Users, TrendingUp, CalendarDays } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Eye, Users, TrendingUp, CalendarDays, Activity } from 'lucide-react'
 import { useDailyTick, dateKey } from '@/hooks/useDailyTick'
 
 /**
@@ -90,6 +90,33 @@ function runDays(iso: string) {
   return Math.max(1, Math.round((b - a) / 86400000) + 1)
 }
 
+/** 数字滚动动画 */
+function useCountUp(target: number, duration = 800) {
+  const [val, setVal] = useState(0)
+  const rafRef = useRef<number>(0)
+  const startRef = useRef(0)
+  useEffect(() => {
+    if (target === 0) { setVal(0); return }
+    cancelAnimationFrame(rafRef.current)
+    startRef.current = performance.now()
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - startRef.current) / duration)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setVal(Math.round(target * eased))
+      if (p < 1) rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [target, duration])
+  return val
+}
+
+/** 单个统计数字组件 */
+function StatNumber({ value, format = true }: { value: number; format?: boolean }) {
+  const animated = useCountUp(value)
+  return <span className="tabular-nums">{format ? animated.toLocaleString() : String(animated)}</span>
+}
+
 export function AccessStatsWidget() {
   const [stats, setStats] = useState<StatsView | null>(null)
   const day = useDailyTick() // 跨日重新拉取，今日访问归零
@@ -119,46 +146,74 @@ export function AccessStatsWidget() {
   }, [day])
 
   const items = [
-    { icon: Eye, label: '总访问', value: stats ? (stats.total ?? 0).toLocaleString() : '—', color: 'text-sky-500' },
-    { icon: TrendingUp, label: '今日访问', value: stats ? String(stats.today ?? 0) : '—', color: 'text-emerald-500' },
-    { icon: Users, label: '访客数', value: stats ? (stats.uv ?? 0).toLocaleString() : '—', color: 'text-violet-500' },
+    { icon: Eye, label: '总访问', value: stats?.total ?? 0, color: 'text-sky-500', bg: 'from-sky-400/20 to-sky-500/5' },
+    { icon: TrendingUp, label: '今日访问', value: stats?.today ?? 0, color: 'text-emerald-500', bg: 'from-emerald-400/20 to-emerald-500/5' },
+    { icon: Users, label: '访客数', value: stats?.uv ?? 0, color: 'text-violet-500', bg: 'from-violet-400/20 to-violet-500/5' },
   ]
 
   // 近 7 日迷你柱状图（仅服务端模式有数据）
   const recent = stats?.recent ?? []
   const peak = Math.max(1, ...recent.map((r) => r.pv))
+  const todayKey = dateKey()
 
   return (
     <div className="widget-card p-3">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-1 h-4 rounded-md bg-accent" />
         <span className="text-sm font-bold text-[rgb(var(--text-primary))]">访问统计</span>
+        {/* 在线状态指示器 */}
+        <span className="ml-auto inline-flex items-center gap-1 text-[10px] text-emerald-500">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          </span>
+          在线
+        </span>
         {stats?.source === 'local' && (
-          <span className="ml-auto text-[10px] text-[rgb(var(--text-secondary))] opacity-70">本机</span>
+          <span className="text-[10px] text-[rgb(var(--text-secondary))] opacity-70">本机</span>
         )}
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         {items.map((it) => (
-          <div key={it.label} className="text-center">
+          <div key={it.label} className={`text-center rounded-lg bg-gradient-to-b ${it.bg} py-2`}>
             <it.icon size={16} className={`mx-auto mb-1 ${it.color}`} />
-            <div className="text-base font-black text-accent tabular-nums">{it.value}</div>
+            <div className="text-base font-black text-accent">
+              {stats ? <StatNumber value={it.value} /> : '—'}
+            </div>
             <div className="text-[10px] text-[rgb(var(--text-secondary))]">{it.label}</div>
           </div>
         ))}
       </div>
 
       {recent.length > 1 && (
-        <div className="mt-3 flex items-end justify-between gap-1 h-8">
-          {recent.map((r) => (
-            <div key={r.date} className="flex-1 group relative flex items-end justify-center h-full">
-              <div
-                className="w-full rounded-t bg-accent/30 group-hover:bg-accent/60 transition-colors"
-                style={{ height: `${Math.max(8, (r.pv / peak) * 100)}%` }}
-                title={`${r.date}：${r.pv} 次访问 / ${r.uv} 位访客`}
-              />
-            </div>
-          ))}
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-[rgb(var(--text-secondary))]">近 7 日趋势</span>
+            <Activity size={11} className="text-accent/50" />
+          </div>
+          <div className="flex items-end justify-between gap-1 h-10">
+            {recent.map((r) => {
+              const isToday = r.date === todayKey
+              const h = Math.max(10, (r.pv / peak) * 100)
+              return (
+                <div key={r.date} className="flex-1 group relative flex items-end justify-center h-full">
+                  <div
+                    className={`w-full rounded-t transition-all duration-300 ${
+                      isToday
+                        ? 'bg-gradient-to-t from-accent to-accent/70'
+                        : 'bg-accent/25 group-hover:bg-accent/50'
+                    }`}
+                    style={{ height: `${h}%` }}
+                  />
+                  {/* 悬浮提示 */}
+                  <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 whitespace-nowrap rounded-md bg-black/80 dark:bg-white/90 px-2 py-1 text-[10px] text-white dark:text-black pointer-events-none">
+                    {r.date.slice(5)}：{r.pv} PV / {r.uv} UV
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

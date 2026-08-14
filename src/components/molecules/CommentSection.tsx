@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MessageSquare, Send, ThumbsUp, Reply, Trash2, Smile,
   ChevronUp, ChevronDown, Link2, ShieldCheck, AtSign, RotateCw, LogOut,
-  Mail, Lock,
+  Mail, Lock, ImageIcon,
 } from 'lucide-react'
 import {
   listComments, createComment, likeComment, deleteComment,
@@ -86,11 +86,11 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
     if (autoFocus) taRef.current?.focus()
   }, [autoFocus])
 
-  const canSubmit = nick.trim() && content.trim() && !sending
+  const canSubmit = nick.trim() && mail.trim() && content.trim() && !sending
 
   const submit = async () => {
     if (!canSubmit) {
-      setError(!nick.trim() ? '请填写昵称' : '评论内容不能为空')
+      setError(!nick.trim() ? '请填写昵称' : !mail.trim() ? '请填写邮箱' : '评论内容不能为空')
       return
     }
     setSending(true)
@@ -135,6 +135,55 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
     })
   }
 
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [imgUploading, setImgUploading] = useState(false)
+
+  const insertText = (text: string) => {
+    const ta = taRef.current
+    if (!ta) { setContent(c => c + text); return }
+    const start = ta.selectionStart ?? content.length
+    const end = ta.selectionEnd ?? content.length
+    const next = content.slice(0, start) + text + content.slice(end)
+    setContent(next)
+    requestAnimationFrame(() => {
+      ta.focus()
+      ta.setSelectionRange(start + text.length, start + text.length)
+    })
+  }
+
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 2 * 1024 * 1024) {
+      setError('图片大小不能超过 2MB')
+      return
+    }
+    setImgUploading(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      insertText(`\n![图片](${dataUrl})\n`)
+      setImgUploading(false)
+    }
+    reader.onerror = () => {
+      setError('图片读取失败')
+      setImgUploading(false)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) handleImageFile(file)
+        return
+      }
+    }
+  }
+
   const btn =
     'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[rgb(var(--text-secondary))] hover:text-accent hover:bg-accent/10 transition-colors'
 
@@ -161,8 +210,9 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
         <textarea
           ref={taRef}
           value={content}
-          onChange={(e) => setContent(e.target.value.slice(0, 1000))}
-          placeholder={replyTo ? `回复 @${replyTo}…` : '写下你的评论，支持 Markdown（`代码`、**加粗**、图片链接）'}
+          onChange={(e) => setContent(e.target.value.slice(0, 5000))}
+          onPaste={onPaste}
+          placeholder={replyTo ? `回复 @${replyTo}…` : '写下你的评论，支持 Markdown（`代码`、**加粗**、可粘贴/上传图片）'}
           rows={preview ? 8 : 3}
           className="w-full resize-y rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] px-3.5 py-2.5 text-sm leading-relaxed outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/25 placeholder:text-[rgb(var(--text-secondary))]/40"
         />
@@ -175,6 +225,18 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
           <button type="button" onClick={() => setPreview((v) => !v)} className={btn}>
             {preview ? <><ChevronUp size={14} />编辑</> : <><ChevronDown size={14} />预览</>}
           </button>
+          <input type="file" ref={fileRef} accept="image/*" className="hidden" onChange={(e) => {
+            if (e.target.files && e.target.files[0]) handleImageFile(e.target.files[0])
+          }} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className={btn}
+            title="上传图片"
+            disabled={imgUploading}
+          >
+            <ImageIcon size={14} className={imgUploading ? 'animate-spin' : ''} />
+          </button>
           <button
             type="button"
             onClick={() => setShowMore((v) => !v)}
@@ -186,15 +248,6 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
 
           {showMore && (
             <span className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] px-2.5 py-1.5 transition-colors focus-within:border-accent">
-                <Mail size={12} className="shrink-0 text-[rgb(var(--text-secondary))]" />
-                <input
-                  value={mail}
-                  onChange={(e) => setMail(e.target.value.slice(0, 120))}
-                  placeholder="邮箱（可选）"
-                  className="w-28 bg-transparent text-xs outline-none placeholder:text-[rgb(var(--text-secondary))]/40"
-                />
-              </label>
               <label className="flex items-center gap-1.5 rounded-lg border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] px-2.5 py-1.5 transition-colors focus-within:border-accent">
                 <Link2 size={12} className="shrink-0 text-[rgb(var(--text-secondary))]" />
                 <input
@@ -236,7 +289,7 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
           />
         )}
 
-        {/* 昵称 + 提交（已登录则锁定会话身份） */}
+        {/* 昵称 + 邮箱 + 提交（已登录则锁定会话身份） */}
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] px-3 py-1.5">
             <span className="text-xs text-[rgb(var(--text-secondary))]">昵称</span>
@@ -252,6 +305,23 @@ function CommentEditor({ path, parentId, replyTo, submitLabel, autoFocus, onPost
                 placeholder="必填"
                 maxLength={24}
                 className="w-24 bg-transparent text-sm outline-none placeholder:text-[rgb(var(--text-secondary))]/40"
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--border-color)] bg-[rgb(var(--bg-secondary))] px-3 py-1.5">
+            <Mail size={12} className="shrink-0 text-[rgb(var(--text-secondary))]" />
+            {session ? (
+              <span className="flex items-center gap-1 text-sm font-semibold text-[rgb(var(--text-primary))]">
+                {session.mail}
+                <Lock size={12} className="text-[rgb(var(--text-secondary))]" />
+              </span>
+            ) : (
+              <input
+                value={mail}
+                onChange={(e) => setMail(e.target.value.slice(0, 120))}
+                placeholder="邮箱（必填）"
+                type="email"
+                className="w-32 bg-transparent text-sm outline-none placeholder:text-[rgb(var(--text-secondary))]/40"
               />
             )}
           </div>
@@ -348,23 +418,14 @@ function CommentRow({ node, path, isChild, onLike, onDelete, onReply }: RowProps
             >
               <Reply size={13} /> 回复
             </button>
-            {node.mine && (
+            {isAdminUser() && (
               <button
                 type="button"
                 onClick={() => act(() => onDelete(node.id))}
+                title="博主删除评论"
                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[rgb(var(--text-secondary))] hover:text-red-500 hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 size={13} /> 删除
-              </button>
-            )}
-            {!node.mine && isAdminUser() && (
-              <button
-                type="button"
-                onClick={() => act(() => onDelete(node.id))}
-                title="博主可删除任意评论"
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-[rgb(var(--text-secondary))] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-              >
-                <Trash2 size={13} /> 管理删除
               </button>
             )}
           </div>
@@ -433,8 +494,9 @@ export function CommentSection({ path }: { path: string }) {
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('确定删除这条评论及其回复吗？')) return
-    // 博主管理删除时附带邮箱身份（服务端按 ADMIN_MAIL 校验）
-    const r = await deleteComment(id, getSession()?.mail)
+    const s = getSession()
+    const ident = readIdentity()
+    const r = await deleteComment(id, s?.mail || ident.mail, s?.nick || ident.nick)
     if (!r.ok) {
       flash(r.error || '删除失败')
       return
@@ -586,7 +648,7 @@ export function CommentSection({ path }: { path: string }) {
       {/* 底部提示 */}
       <div className="mt-5 flex items-center justify-between text-[11px] text-[rgb(var(--text-secondary))] opacity-80">
         <span className="inline-flex items-center gap-1">
-          <Link2 size={11} /> 评论内容会自动保存，站长可管理删除
+          <Link2 size={11} /> 评论内容会自动保存，仅博主可删除评论
         </span>
         {notice && <span className="text-accent">{notice}</span>}
       </div>

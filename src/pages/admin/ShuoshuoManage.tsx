@@ -1,6 +1,6 @@
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Pencil, Trash2, X, MessageCircle, Loader2, Smile, Calendar } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MessageCircle, Loader2, Smile, Calendar, Upload } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
 
 /** 后台说说条目 */
@@ -17,11 +17,15 @@ interface ShuoshuoForm {
   id?: string
   content: string
   mood: string
+  images: string
+  date: string
 }
 
 const EMPTY_FORM: ShuoshuoForm = {
   content: '',
   mood: '',
+  images: '',
+  date: new Date().toISOString().slice(0, 16).replace('T', ' '),
 }
 
 export default function ShuoshuoManage() {
@@ -34,6 +38,9 @@ export default function ShuoshuoManage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const pendingMoodRef = useRef<string>('')
 
   /** 加载说说列表 */
   const load = async () => {
@@ -72,6 +79,8 @@ export default function ShuoshuoManage() {
       id: item.id,
       content: item.content || '',
       mood: item.mood || '',
+      images: Array.isArray(item.images) ? item.images.join(', ') : '',
+      date: item.date || new Date().toISOString().slice(0, 16).replace('T', ' '),
     })
     setIsEditing(true)
     setModalOpen(true)
@@ -86,11 +95,16 @@ export default function ShuoshuoManage() {
     }
     setSubmitting(true)
     try {
+      const payload = {
+        ...form,
+        images: form.images.split(',').map((s: string) => s.trim()).filter(Boolean),
+        date: form.date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+      }
       if (isEditing && form.id) {
-        await adminApi.updateShuoshuo(form)
+        await adminApi.updateShuoshuo(payload)
         showToast('说说已更新')
       } else {
-        await adminApi.createShuoshuo(form)
+        await adminApi.createShuoshuo(payload)
         showToast('说说已发布')
       }
       setModalOpen(false)
@@ -116,6 +130,32 @@ export default function ShuoshuoManage() {
     }
   }
 
+  /** 点击上传说说 — 先询问心情，再打开文件选择器 */
+  const handleUploadShuoshuoClick = () => {
+    const mood = window.prompt('请输入心情/标签（可选，留空跳过）：', '')
+    if (mood === null) return // 用户取消
+    pendingMoodRef.current = mood
+    fileInputRef.current?.click()
+  }
+
+  /** 上传说说文件 */
+  const handleUploadShuoshuo = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      await adminApi.uploadShuoshuoMarkdown(file, pendingMoodRef.current || undefined)
+      showToast('说说上传成功')
+      void load()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '上传失败')
+    } finally {
+      setUploading(false)
+      pendingMoodRef.current = ''
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   /** 截断预览 */
   const preview = (text: string, max = 80) => {
     const flat = text.replace(/\n/g, ' ')
@@ -124,18 +164,37 @@ export default function ShuoshuoManage() {
 
   return (
     <div className="space-y-6">
+      {/* 隐藏的文件选择器 */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.md"
+        className="hidden"
+        onChange={handleUploadShuoshuo}
+      />
+
       {/* 顶部标题栏 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">说说管理</h1>
           <p className="mt-1 text-sm text-white/40">共 {list.length} 条说说</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
-        >
-          <Plus size={16} /> 发布说说
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          >
+            <Plus size={16} /> 发布说说
+          </button>
+          <button
+            onClick={handleUploadShuoshuoClick}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            {uploading ? '上传中...' : '上传说说'}
+          </button>
+        </div>
       </div>
 
       {/* 错误提示 */}
@@ -272,6 +331,31 @@ export default function ShuoshuoManage() {
                     placeholder="如：开心📷、碎碎念、日常"
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      图片链接（逗号分隔）
+                    </label>
+                    <input
+                      value={form.images}
+                      onChange={(e) => setForm({ ...form, images: e.target.value })}
+                      placeholder="https://example.com/1.jpg, https://example.com/2.jpg"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-white/60">
+                      发布时间
+                    </label>
+                    <input
+                      value={form.date}
+                      onChange={(e) => setForm({ ...form, date: e.target.value })}
+                      placeholder="2026-08-14 12:00"
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">

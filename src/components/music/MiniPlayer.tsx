@@ -66,12 +66,13 @@ export function MiniPlayer({
             className="flex min-w-0 flex-1 items-center gap-3 text-left group"
             aria-label="展开大型播放器"
           >
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/20 overflow-hidden">
               <img
                 src={song.cover}
                 alt={song.name}
                 className={`h-12 w-12 rounded-2xl object-cover shadow-lg
                   ${isPlaying ? 'animate-spin-slow' : ''}`}
+                onError={(e) => { e.currentTarget.style.opacity = '0' }}
               />
             </div>
             <div className="min-w-0">

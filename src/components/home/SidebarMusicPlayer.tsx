@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react'
 import { Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react'
 import { useMusicStore } from '@/store/useMusicStore'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { playClickSound } from '@/utils/sounds'
+import { AudioVisualizer } from '@/components/home/AudioVisualizer'
 
 /**
  * SidebarMusicPlayer 侧边栏迷你音乐播放器
@@ -15,6 +17,9 @@ export function SidebarMusicPlayer() {
   const playlists = useMusicStore((s) => s.playlists)
 
   const { handlePrev, handleNext } = useAudioPlayer()
+  const [coverError, setCoverError] = useState(false)
+
+  useEffect(() => { setCoverError(false) }, [currentSong?.cover])
 
   // 取当前已加载歌单的第一首（线上刷新后为最新可播放地址，避免使用过期内嵌 src）
   const firstSong = playlists?.[0]?.songs?.[0]
@@ -38,9 +43,10 @@ export function SidebarMusicPlayer() {
 
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          {currentSong?.cover ? (
+          {currentSong?.cover && !coverError ? (
             <img src={currentSong.cover} alt={currentSong.name}
-              className={`w-14 h-14 rounded-xl object-cover shadow-md ${isPlaying ? 'animate-spin-slow' : ''}`} />
+              className={`w-14 h-14 rounded-xl object-cover shadow-md ${isPlaying ? 'animate-spin-slow' : ''}`}
+              onError={() => setCoverError(true)} />
           ) : (
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">
               <Music size={24} className="text-accent" />
@@ -71,6 +77,11 @@ export function SidebarMusicPlayer() {
           className="w-8 h-8 rounded-full flex items-center justify-center text-[rgb(var(--text-secondary))] hover:text-accent hover:bg-accent/10 transition-colors">
           <SkipForward size={14} />
         </button>
+      </div>
+
+      {/* 音频频谱可视化 */}
+      <div className="mt-3">
+        <AudioVisualizer height={32} barCount={24} />
       </div>
     </div>
   )

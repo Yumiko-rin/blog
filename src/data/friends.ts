@@ -229,3 +229,37 @@ export const FRIENDS: Friend[] = [
     tag: '博客',
   },
 ]
+
+/**
+ * 异步加载友链（静态友链 + 后台审批通过的友链申请）
+ */
+let _cachedFriends: Friend[] | null = null
+let _cacheTime = 0
+const CACHE_MS = 5 * 60 * 1000
+
+export async function loadFriends(force = false): Promise<Friend[]> {
+  if (!force && _cachedFriends && Date.now() - _cacheTime < CACHE_MS) {
+    return _cachedFriends
+  }
+  try {
+    const res = await fetch('/local-api/friends')
+    if (res.ok) {
+      const data = await res.json()
+      const kvFriends: Friend[] = (data.list || []).map((f: any) => ({
+        id: f.id || `friend-${f.name}`,
+        name: f.name || '',
+        url: f.url || '',
+        avatar: f.avatar || '',
+        description: f.description || '',
+        tag: f.tag || '博客',
+      }))
+      // 合并：审批通过的友链 + 静态友链（去重）
+      const kvUrls = new Set(kvFriends.map(f => f.url))
+      const merged = [...kvFriends, ...FRIENDS.filter(f => !kvUrls.has(f.url))]
+      _cachedFriends = merged
+      _cacheTime = Date.now()
+      return merged
+    }
+  } catch { /* ignore, fall back to static */ }
+  return FRIENDS
+}

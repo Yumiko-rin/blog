@@ -46,6 +46,8 @@ interface MusicState {
   setFullPanelOpen: (open: boolean) => void
   /** 写入从网易云/本地加载到的歌单 */
   setPlaylists: (playlists: Playlist[]) => void
+  /** 回写歌曲时长到歌单数据（播放时从 audio.loadedmetadata 获取） */
+  updateSongDuration: (songId: string | number, duration: number) => void
 }
 
 /** 模式循环顺序 */
@@ -127,6 +129,20 @@ export const useMusicStore = create<MusicState>((set, get) => {
 
   setFullPanelOpen: (open) => set({ isFullPanelOpen: open }),
   setPlaylists: (playlists) => set({ playlists }),
+  updateSongDuration: (songId, duration) => {
+    if (!Number.isFinite(duration) || duration <= 0) return
+    set((s) => ({
+      playlists: s.playlists.map(pl => ({
+        ...pl,
+        songs: pl.songs.map(song =>
+          song.id === songId ? { ...song, duration } : song
+        ),
+      })),
+      currentSong: s.currentSong?.id === songId
+        ? { ...s.currentSong, duration }
+        : s.currentSong,
+    }))
+  },
   }
 })
 

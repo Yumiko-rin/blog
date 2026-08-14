@@ -1,6 +1,32 @@
 {
   "models": [
     [
+      "kp31/kp31-/normal",
+      "kp31/kp31-/destroy",
+      "kp31/kp31_/normal",
+      "kp31/kp31_/destroy",
+      "kp31/kp31_1103/normal",
+      "kp31/kp31_1103/destroy"
+    ],
+    [
+      "AK12/ak12_0/normal",
+      "AK12/ak12_0/destroy",
+      "AK12/ak12_2402/normal",
+      "AK12/ak12_2402/destroy"
+    ],
+    [
+      "AN-94/an94_2404/normal",
+      "AN-94/an94_2404/destroy",
+      "AN-94/an94_3303/normal",
+      "AN-94/an94_3303/destroy"
+    ],
+    [
+      "HK416/HK416_805/normal",
+      "HK416/HK416_805/destroy",
+      "HK416/HK416_3401/normal",
+      "HK416/HK416_3401/destroy"
+    ],
+    [
       "fairy/air_attack",
       "fairy/air_attack/02",
       "fairy/air_attack/03",
@@ -28,32 +54,6 @@
       "fairy/target",
       "fairy/target/02",
       "fairy/target/03"
-    ],
-    [
-      "AK12/ak12_0/normal",
-      "AK12/ak12_0/destroy",
-      "AK12/ak12_2402/normal",
-      "AK12/ak12_2402/destroy"
-    ],
-    [
-      "AN-94/an94_2404/normal",
-      "AN-94/an94_2404/destroy",
-      "AN-94/an94_3303/normal",
-      "AN-94/an94_3303/destroy"
-    ],
-    [
-      "HK416/HK416_805/normal",
-      "HK416/HK416_805/destroy",
-      "HK416/HK416_3401/normal",
-      "HK416/HK416_3401/destroy"
-    ],
-    [
-      "kp31/kp31-/normal",
-      "kp31/kp31-/destroy",
-      "kp31/kp31_/normal",
-      "kp31/kp31_/destroy",
-      "kp31/kp31_1103/normal",
-      "kp31/kp31_1103/destroy"
     ],
     [
       "rfbchristmas/normal",
@@ -157,11 +157,11 @@
     ]
   ],
   "messages": [
-    "少女前线 Girls Frontline~ fairy",
+    "少女前线 Girls Frontline~ kp31",
     "少女前线 Girls Frontline~ AK12",
     "少女前线 Girls Frontline~ AN-94",
     "少女前线 Girls Frontline~ HK416_805",
-    "少女前线 Girls Frontline~ kp31",
+    "少女前线 Girls Frontline~ fairy",
     "少女前线 Girls Frontline~ rfb christmas",
     "少女前线 Girls Frontline~ ro635_4504",
     "少女前线 Girls Frontline~ ots14",

@@ -4,20 +4,22 @@ import { FALLBACK_PLAYLISTS } from './livePlaylist'
 /**
  * 歌单数据源（多歌单）
  * --------------------------------------------------
- * 音乐 API 使用自建 Meting-API 转发（http://47.104.189.4/music/，CORS 全开放）：
+ * 音乐 API 使用 NaiHe Meting 公共实例（meting.naihee.com/api，HTTPS + CORS）：
  *   GET /music/?type=playlist&id=<网易云歌单ID>
- * 返回标准 Meting 结构 [{ name, artist, url, pic, lrc }]：
- *   - url  → 播放地址（Meting 转发，302 到带签名网易云 mp3）
+ * 返回标准 Meting 结构 [{ title, author, url, pic, lrc }]：
+ *   - url  → 播放地址（直接返回音频流，无需跟随 302）
  *   - pic  → 封面
  *   - lrc  → 歌词源（返回标准 LRC 文本，运行时按 lrcUrl 拉取）
  *
- * 地址统一为同源相对路径 /music/...（浏览器端无跨域、无 mixed-content 问题）：
- *   - 本地开发：vite server.proxy /music → 47.104.189.4
- *   - 本地预览：preview-server.cjs /music 代理
- *   - Cloudflare Pages：functions/music/[[path]].ts 代理（服务端跟随 302 回传字节）
+ * 地址统一为同源相对路径 /local-api/music-stream?...（浏览器端无跨域、无 mixed-content 问题）：
+ *   - 本地开发：vite server.proxy /music → meting.naihee.com/api
+ *   - Cloudflare Pages：functions/music/[[path]].ts 代理（服务端转发回传字节）
  */
 
-/** 精选日漫歌单列表（多个歌单，并行加载） */
+/**
+ * 精选日漫歌单列表（多个歌单，并行加载）
+ * 上游 API：meting.naihee.com/api（NaiHe 公共 Meting 实例）
+ */
 const PLAYLIST_SOURCES = [
   { id: 'netease-9564103735', apiId: 9564103735, name: '二次元日漫精选 · 2024新番OP/ED' },
   { id: 'netease-8832161095', apiId: 8832161095, name: '二次元日漫精选 · 2023新番OP/ED' },
@@ -31,12 +33,42 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 分钟
 let cachedPlaylists: Playlist[] | null = null
 let cacheTime = 0
 
-/** Meting 返回的绝对地址 → 同源 local-api 代理路径（避免 302 跨域重定向导致音频加载失败） */
+/** Meting 返回的绝对地址 → 同源代理路径（避免 302 跨域重定向导致音频/图片加载失败） */
 function toSameOrigin(u: string): string {
-  return String(u || '')
-    .replace(/^https?:\/\/api\.injahow\.cn\/meting\/\?server=netease&type=/, '/local-api/music-stream?type=')
-    .replace(/^https?:\/\/47\.104\.189\.4\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
-    .replace(/^\/music\/\?server=netease&type=/, '/local-api/music-stream?type=')
+  let url = String(u || '')
+  if (!url) return ''
+
+  // 匹配各种 Meting API 域名 + 任意参数顺序
+  const metingPatterns = [
+    /^https?:\/\/meting\.naihee\.com\/api\?/,
+    /^https?:\/\/api\.injahow\.cn\/meting\/\?/,
+    /^https?:\/\/47\.104\.189\.4\/music\/\?/,
+    /^\/music\/\?/,
+    /^\/local-api\/music-stream\?/,
+  ]
+
+  for (const pattern of metingPatterns) {
+    if (pattern.test(url)) {
+      const typeMatch = url.match(/[?&]type=([^&]+)/)
+      const idMatch = url.match(/[?&]id=([^&]+)/)
+      const type = typeMatch ? typeMatch[1] : 'url'
+      const id = idMatch ? idMatch[1] : ''
+      // 图片、音频和歌词统一走 /local-api/music-stream（服务端代理跟随 302 并加 Referer 头）
+      return `/local-api/music-stream?type=${type}&id=${id}`
+    }
+  }
+
+  // 网易云 CDN 图片直接升级 https
+  if (/^http:\/\/p\d*\.music\.126\.net\//.test(url)) {
+    return 'https://' + url.slice(7)
+  }
+
+  // 非 Meting URL：升级 http → https 避免 mixed-content
+  if (url.startsWith('http://')) {
+    url = 'https://' + url.slice(7)
+  }
+
+  return url
 }
 
 /** 从 Meting 播放地址中提取网易云歌曲 ID */
@@ -47,7 +79,7 @@ function extractNeteaseId(raw: Record<string, any>, url: string): number | undef
   return Number.isFinite(n) && n > 0 ? n : undefined
 }
 
-/** 把线上接口返回的一行数据映射为本地 Song（Meting: name/artist/url/pic/lrc） */
+/** 把线上接口返回的一行数据映射为本地 Song（兼容 injahow 的 name/artist 和 NaiHe 的 title/author） */
 function mapSong(raw: Record<string, any>): Song {
   const url = toSameOrigin(raw.url || '')
   const neteaseId = extractNeteaseId(raw, url)
@@ -100,7 +132,7 @@ export async function loadPlaylists(): Promise<Playlist[]> {
     const seen = new Set<number>()
     const results = await Promise.all(
       PLAYLIST_SOURCES.map(async (src) => {
-        const res = await fetch(`/music/?type=playlist&id=${src.apiId}`)
+        const res = await fetch(`/music?server=netease&type=playlist&id=${src.apiId}`)
         if (!res.ok) throw new Error(`bad status ${res.status}`)
         const raw = await res.json()
         const list = Array.isArray(raw) ? raw : []

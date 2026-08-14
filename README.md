@@ -140,14 +140,14 @@ npm run build
 |--------|------|------|
 | `COMMENTS_KV` | wrangler.toml | KV 命名空间，存储评论和统计数据 |
 | 管理员邮箱 | functions/local-api/[[path]].ts | 设为 `jaychou8421@gmail.com` 时获得评论管理权限 |
-| 后台密码 | functions/admin/[[path]].ts | 后台登录密码（默认 `kirameki2026`） |
+| 后台密码 | functions/admin/[[path]].ts | 后台登录密码（默认 `123456`） |
 | 音乐 API | functions/music/[[path]].ts | Meting API 上游（`api.injahow.cn`） |
 
 ## 🔐 后台管理
 
 访问 `/admin` 进入后台管理系统。
 
-- **登录密码**：`kirameki2026`
+- **登录密码**：`123456`
 - **鉴权方式**：JWT Token（7 天有效期）
 - **功能模块**：仪表盘、文章管理、说说管理、评论管理、友链管理、访问统计
 

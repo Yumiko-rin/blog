@@ -37,6 +37,7 @@ interface Env {
 
 const ADMIN_TOKEN = 'kirameku-admin'
 const ADMIN_MAIL = 'jaychou8421@gmail.com'
+const ADMIN_NICK = 'jay'
 const NICK_MAX = 24
 const CONTENT_MAX = 1000
 const POST_INTERVAL_MS = 5000
@@ -218,9 +219,10 @@ async function createComment(body: Record<string, unknown>, req: Request, kv: KV
   const parentId = String(body.parentId || '').trim().slice(0, 64)
 
   if (!nick) return { error: '请填写昵称' }
+  if (!mail) return { error: '请填写邮箱' }
   if (!content) return { error: '评论内容不能为空' }
   if (!p) return { error: '缺少评论路径' }
-  if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { error: '邮箱格式不正确' }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) return { error: '邮箱格式不正确' }
 
   // 频率限制
   const now = Date.now()
@@ -259,7 +261,7 @@ async function createComment(body: Record<string, unknown>, req: Request, kv: KV
     createdAt: new Date().toISOString(),
     likedBy: [],
     ownerToken: token,
-    admin: token === ADMIN_TOKEN || (mail && mail.toLowerCase() === ADMIN_MAIL.toLowerCase()),
+    admin: token === ADMIN_TOKEN || (mail && mail.toLowerCase() === ADMIN_MAIL.toLowerCase() && nick === ADMIN_NICK),
     cid,
   }
 
@@ -301,7 +303,7 @@ async function removeComment(body: Record<string, unknown>, kv: KVNamespace) {
   if (!c) return { error: '评论不存在' }
 
   const isAdmin = token === ADMIN_TOKEN || (mail && mail.toLowerCase() === ADMIN_MAIL.toLowerCase())
-  if (!isAdmin && c.ownerToken !== token) return { error: '无权删除这条评论' }
+  if (!isAdmin) return { error: '只有博主可以删除评论' }
 
   // 连带删除所有后代
   const dead = new Set([id])
@@ -440,7 +442,31 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const id = q.get('id')
       if (!id) return json({ error: 'missing id' }, 400)
 
-      const metingUrl = `https://api.injahow.cn/meting/?server=netease&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`
+      // type=pic: meting.naihee.com 的 type=pic 返回 500，改用 api.injahow.cn
+      if (type === 'pic') {
+        const picMetingUrl = `https://api.injahow.cn/meting/?server=netease&type=pic&id=${encodeURIComponent(id)}`
+        const picRes = await fetch(picMetingUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          redirect: 'manual',
+        })
+        if (picRes.status === 301 || picRes.status === 302) {
+          const loc = picRes.headers.get('location')
+          if (loc) {
+            const imgRes = await fetch(loc, { redirect: 'follow' })
+            return new Response(imgRes.body, {
+              status: imgRes.status,
+              headers: {
+                'Content-Type': imgRes.headers.get('content-type') || 'image/jpeg',
+                'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'public, max-age=3600',
+              },
+            })
+          }
+        }
+        return json({ error: 'failed to resolve pic' }, 502)
+      }
+
+      const metingUrl = `https://meting.naihee.com/api?server=netease&type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`
       const range = request.headers.get('range')
 
       const reqHeaders = new Headers()
@@ -487,6 +513,77 @@ export const onRequest: PagesFunction<Env> = async (context) => {
           'Cache-Control': 'public, max-age=300',
         },
       })
+    }
+
+    /* ===== 公开数据接口：文章 / 说说 / 友链 ===== */
+
+    // 文章列表（从 KV 读取后台发布的文章）
+    if (route === '/articles' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('admin_articles')
+        const list = raw ? JSON.parse(raw) : []
+        return json({ list: Array.isArray(list) ? list : [], source: 'kv' })
+      } catch {
+        return json({ list: [], source: 'kv' })
+      }
+    }
+
+    // 说说列表（从 KV 读取后台发布的说说）
+    if (route === '/shuoshuo' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('admin_shuoshuo')
+        const list = raw ? JSON.parse(raw) : []
+        return json({ list: Array.isArray(list) ? list : [], source: 'kv' })
+      } catch {
+        return json({ list: [], source: 'kv' })
+      }
+    }
+
+    // 友链列表（静态友链 + KV 中已审批通过的友链申请）
+    if (route === '/friends' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('friend_applications')
+        const apps = raw ? JSON.parse(raw) : []
+        const approved = Array.isArray(apps)
+          ? apps.filter((a: any) => a.status === 'approved').map((a: any) => ({
+              id: a.id || `friend-${a.name}`,
+              name: a.name || '',
+              url: a.url || '',
+              avatar: a.avatar || '',
+              description: a.description || '',
+              tag: a.tag || '博客',
+            }))
+          : []
+        return json({ list: approved, source: 'kv' })
+      } catch {
+        return json({ list: [], source: 'kv' })
+      }
+    }
+
+    // 友链申请
+    if (route === '/friends/apply' && request.method === 'POST') {
+      if (!kv) return json({ error: 'KV not configured' }, 503)
+      const body = await readBody(request)
+      if (!body.name || !body.url) return json({ error: '名称和地址必填' }, 400)
+      try {
+        const raw = await kv.get('friend_applications')
+        const list: any[] = raw ? JSON.parse(raw) : []
+        const app = {
+          id: `fa${Date.now().toString(36)}`,
+          name: String(body.name).slice(0, 50),
+          url: String(body.url).slice(0, 200),
+          avatar: String(body.avatar || '').slice(0, 300),
+          description: String(body.description || '').slice(0, 200),
+          tag: String(body.tag || '博客').slice(0, 20),
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        }
+        list.push(app)
+        await kv.put('friend_applications', JSON.stringify(list))
+        return json({ ok: true, id: app.id })
+      } catch {
+        return json({ error: '申请失败' }, 500)
+      }
     }
 
     return json({ error: 'not found', route }, 404)

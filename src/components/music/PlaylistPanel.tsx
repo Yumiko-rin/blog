@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Play, Pause, Clock, Disc3 } from 'lucide-react'
 import { formatTime } from '@/utils/format'
+import { useMusicStore } from '@/store/useMusicStore'
 import type { Playlist, Song } from '@/types'
 
 /**
@@ -61,6 +62,35 @@ export function PlaylistPanel({
     return selected.songs.reduce((acc, s) => acc + (s.duration || 0), 0)
   }, [selected])
 
+  // 后台预加载歌曲时长（逐首加载 metadata，不播放音频）
+  useEffect(() => {
+    if (!selected) return
+    const songs = selected.songs.filter(s => !s.duration || s.duration === 0)
+    if (songs.length === 0) return
+
+    let cancelled = false
+    const tmp = new Audio()
+    tmp.preload = 'metadata'
+
+    const preloadNext = (i: number) => {
+      if (cancelled || i >= songs.length) { tmp.src = ''; return }
+      const song = songs[i]
+      tmp.src = song.src
+      tmp.onloadedmetadata = () => {
+        if (cancelled) return
+        const d = tmp.duration
+        if (d > 0 && Number.isFinite(d)) {
+          useMusicStore.getState().updateSongDuration(song.id, d)
+        }
+        preloadNext(i + 1)
+      }
+      tmp.onerror = () => { if (!cancelled) preloadNext(i + 1) }
+    }
+
+    const timer = setTimeout(() => preloadNext(0), 800)
+    return () => { cancelled = true; clearTimeout(timer); tmp.src = '' }
+  }, [selected])
+
   // 播放全部
   const playAll = () => {
     if (selected && selected.songs.length > 0) {
@@ -110,13 +140,14 @@ export function PlaylistPanel({
               style={{ animationDelay: `${idx * 50}ms` }}
             >
               {/* 封面 */}
-              <div className="relative shrink-0">
+              <div className="relative shrink-0 h-14 w-14 rounded-xl bg-gradient-to-br from-purple-500/30 to-pink-500/20 overflow-hidden">
                 <img
                   src={pl.cover}
                   alt={pl.name}
                   className={`h-14 w-14 rounded-xl object-cover shadow-md
                     transition-transform duration-300
                     ${isSelected ? 'scale-105' : 'group-hover:scale-105'}`}
+                  onError={(e) => { e.currentTarget.style.opacity = '0' }}
                 />
                 {/* 播放中指示器 */}
                 {hasPlaying && isPlaying && (
@@ -157,17 +188,21 @@ export function PlaylistPanel({
               src={selected.cover}
               alt=""
               className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-20"
+              onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
           </div>
 
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <img
-                src={selected.cover}
-                alt={selected.name}
-                className="h-16 w-16 rounded-2xl object-cover shadow-xl ring-2 ring-white/10"
-              />
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500/30 to-pink-500/20 overflow-hidden ring-2 ring-white/10 shadow-xl">
+                <img
+                  src={selected.cover}
+                  alt={selected.name}
+                  className="h-16 w-16 rounded-2xl object-cover"
+                  onError={(e) => { e.currentTarget.style.opacity = '0' }}
+                />
+              </div>
               <div>
                 <h3 className="text-lg font-bold text-[rgb(var(--text-primary))]">{selected.name}</h3>
                 {selected.description && (
@@ -255,13 +290,14 @@ export function PlaylistPanel({
 
                 {/* 封面 + 歌曲信息 */}
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/10 overflow-hidden">
                     <img
                       src={song.cover}
                       alt={song.name}
                       className={`h-10 w-10 rounded-lg object-cover shadow-sm
                         transition-transform duration-300
                         ${isCurrent ? 'ring-2 ring-accent/50' : 'group-hover:scale-110'}`}
+                      onError={(e) => { e.currentTarget.style.opacity = '0' }}
                     />
                     {/* 悬停播放覆盖 */}
                     {!isCurrent && (

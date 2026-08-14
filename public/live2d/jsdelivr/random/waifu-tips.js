@@ -45,15 +45,27 @@
     }
 
     async loadModelList() {
+      if (this.modelList) return this.modelList;
       const res = await fetch(`${this.cdnPath}model_list.json`);
       this.modelList = await res.json();
+      return this.modelList;
+    }
+
+    preloadModel(id) {
+      if (!this.modelList || !this.modelList.models[id]) return;
+      const path = this.modelList.models[id][0];
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'fetch';
+      link.href = `${this.cdnPath}model/${path}/index.json`;
+      document.head.appendChild(link);
     }
 
     async loadOtherModel() {
-      let id = localStorage.getItem("modelId");
+      let id = parseInt(localStorage.getItem("modelId")) || 0;
       if (this.useCDN) {
-        if (!this.modelList) await this.loadModelList();
-        const next = ++id >= this.modelList.models.length ? 0 : id;
+        await this.loadModelList();
+        const next = (id + 1) >= this.modelList.models.length ? 0 : (id + 1);
         this.loadModel(next, 0, this.modelList.messages[next]);
       } else {
         fetch(`${this.apiPath}switch/?id=${id}`)
@@ -65,25 +77,34 @@
     async loadModel(id, tid, msg) {
       localStorage.setItem("modelId", id);
       localStorage.setItem("modelTexturesId", tid);
-      showMessage(msg, 4000, 10);
+      showMessage(msg, 6000, 10);
       if (this.useCDN) {
-        if (!this.modelList) await this.loadModelList();
+        await this.loadModelList();
         const path = this.modelList.models[id][0];
+        const canvas = document.getElementById('live2d');
+        if (canvas) {
+          canvas.style.transition = 'opacity 0.2s ease';
+          canvas.style.opacity = '0.3';
+        }
         loadlive2d("live2d", `${this.cdnPath}model/${path}/index.json`);
+        setTimeout(() => {
+          if (canvas) canvas.style.opacity = '1';
+        }, 300);
+        const nextId = (parseInt(id) + 1) >= this.modelList.models.length ? 0 : (parseInt(id) + 1);
+        this.preloadModel(nextId);
       } else {
         loadlive2d("live2d", `${this.apiPath}get/?id=${id}-${tid}`);
-        console.log(`Live2D 模型 ${id}-${tid} 加载完成`);
       }
     }
 
     async loadRandModel() {
-      const id = localStorage.getItem("modelId");
-      const tid = localStorage.getItem("modelTexturesId");
+      const id = parseInt(localStorage.getItem("modelId")) || 0;
+      const tid = parseInt(localStorage.getItem("modelTexturesId")) || 0;
       if (this.useCDN) {
-        if (!this.modelList) await this.loadModelList();
+        await this.loadModelList();
         const path = pick(this.modelList.models[id]);
         loadlive2d("live2d", `${this.cdnPath}model/${path}/index.json`);
-        showMessage("我的新衣服好看嘛？", 4000, 10);
+        showMessage("我的新衣服好看嘛？", 6000, 10);
       } else {
         fetch(`${this.apiPath}rand_textures/?id=${id}-${tid}`)
           .then(r => r.json())
@@ -154,7 +175,7 @@
         showMessage("愿你有一天能与重要的人重逢。", 2000, 11);
         const el = document.getElementById("waifu");
         // 切回 bottom 定位以便退场动画正常
-        el.style.transition = "transform 0.3s ease-in-out, bottom 3s ease-in-out";
+        el.style.transition = "transform 0.3s ease-in-out, bottom 0.6s ease-in-out";
         el.style.left = "auto";
         el.style.top = "auto";
         el.style.right = "0";
@@ -162,7 +183,7 @@
         setTimeout(() => {
           el.style.display = "none";
           document.getElementById("waifu-toggle").classList.add("waifu-toggle-active");
-        }, 3000);
+        }, 600);
       }
     }
   };
@@ -376,9 +397,10 @@
     }
 
     // 加载模型和提示语
-    let modelId = localStorage.getItem("modelId");
-    let texId = localStorage.getItem("modelTexturesId");
-    if (modelId === null) { modelId = 0; texId = 0; }
+    let modelId = parseInt(localStorage.getItem("modelId")) || 0;
+    let texId = parseInt(localStorage.getItem("modelTexturesId")) || 0;
+    // 预加载 model_list.json，避免首次切换时的额外延迟
+    if (loader.useCDN) loader.loadModelList();
     loader.loadModel(modelId, texId);
     fetch(config.waifuPath).then(r => r.json()).then(setupTips);
   }

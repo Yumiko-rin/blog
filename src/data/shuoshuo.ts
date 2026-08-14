@@ -43,3 +43,37 @@ export const SHUOSHUO: Shuoshuo[] = [
     content: '早上好呀～☀️ 今天天气不错，准备把博客再优化一下，加油！',
   },
 ]
+
+/**
+ * 异步加载说说（后台发布的 + 静态内置的合并）
+ * 后台发布的说说排在前面，静态说说作为兜底。
+ */
+let _cachedShuoshuo: Shuoshuo[] | null = null
+let _cacheTime = 0
+const CACHE_MS = 5 * 60 * 1000
+
+export async function loadShuoshuo(force = false): Promise<Shuoshuo[]> {
+  if (!force && _cachedShuoshuo && Date.now() - _cacheTime < CACHE_MS) {
+    return _cachedShuoshuo
+  }
+  try {
+    const res = await fetch('/local-api/shuoshuo')
+    if (res.ok) {
+      const data = await res.json()
+      const kvList: Shuoshuo[] = (data.list || []).map((s: any) => ({
+        id: s.id || `s-${Date.now()}`,
+        date: s.date || new Date().toISOString().slice(0, 19).replace('T', ' '),
+        mood: s.mood || '',
+        content: s.content || '',
+        images: Array.isArray(s.images) ? s.images : [],
+      }))
+      // 合并：KV 说说在前，静态说说在后（去重）
+      const kvIds = new Set(kvList.map(s => s.id))
+      const merged = [...kvList, ...SHUOSHUO.filter(s => !kvIds.has(s.id))]
+      _cachedShuoshuo = merged
+      _cacheTime = Date.now()
+      return merged
+    }
+  } catch { /* ignore, fall back to static */ }
+  return SHUOSHUO
+}
