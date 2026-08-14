@@ -34,6 +34,16 @@ export default defineConfig({
   build: {
     // 本机 Windows 环境下 esbuild/terser minify 均会卡死（rollup render 阶段），
     // 统一用 --minify false 构建（gzip 后体积可接受），见 package.json build 脚本
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-markdown': ['react-markdown', 'rehype-highlight', 'remark-gfm'],
+          'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

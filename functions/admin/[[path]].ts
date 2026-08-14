@@ -28,10 +28,20 @@ interface Env {
 
 interface AdminEnv extends Env {
   ADMIN_KV?: KVNamespace
+  ADMIN_PASSWORD?: string
+  JWT_SECRET?: string
 }
 
 const ADMIN_PASSWORD = '123456'
 const JWT_SECRET = 'kirameki-jwt-secret-2026-very-long'
+
+function getAdminPassword(env?: AdminEnv): string {
+  return env?.ADMIN_PASSWORD || ADMIN_PASSWORD
+}
+
+function getJwtSecret(env?: AdminEnv): string {
+  return env?.JWT_SECRET || JWT_SECRET
+}
 
 /* ===== 工具函数 ===== */
 
@@ -55,11 +65,11 @@ async function readBody(req: Request): Promise<Record<string, any>> {
   }
 }
 
-async function signJWT(payload: Record<string, any>): Promise<string> {
+async function signJWT(payload: Record<string, any>, secret: string): Promise<string> {
   const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const body = btoa(JSON.stringify({ ...payload, iat: Date.now(), exp: Date.now() + 7 * 24 * 3600 * 1000 }))
   const key = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(JWT_SECRET),
+    'raw', new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   )
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${header}.${body}`))
@@ -67,12 +77,12 @@ async function signJWT(payload: Record<string, any>): Promise<string> {
   return `${header}.${body}.${sigStr}`
 }
 
-async function verifyJWT(token: string): Promise<boolean> {
+async function verifyJWT(token: string, secret: string): Promise<boolean> {
   try {
     const [header, body, sig] = token.split('.')
     if (!header || !body || !sig) return false
     const key = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(JWT_SECRET),
+      'raw', new TextEncoder().encode(secret),
       { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
     )
     const sigBytes = Uint8Array.from(atob(sig), c => c.charCodeAt(0))
@@ -93,10 +103,10 @@ function getToken(req: Request): string | null {
   return m ? m[1] : null
 }
 
-async function requireAuth(req: Request): Promise<boolean> {
+async function requireAuth(req: Request, secret: string): Promise<boolean> {
   const token = getToken(req)
   if (!token) return false
-  return verifyJWT(token)
+  return verifyJWT(token, secret)
 }
 
 /* ===== KV 存储层 ===== */
@@ -172,27 +182,29 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
 
   const kv = env.COMMENTS_KV
   const adminKv = env.ADMIN_KV || env.COMMENTS_KV // 复用同一 KV
+  const jwtSecret = getJwtSecret(env)
+  const adminPassword = getAdminPassword(env)
 
   try {
     /* ---- 登录 ---- */
     if (route === '/login' && request.method === 'POST') {
       const body = await readBody(request)
-      if (body.password !== ADMIN_PASSWORD) {
+      if (body.password !== adminPassword) {
         return json({ error: '密码错误' }, 401)
       }
-      const token = await signJWT({ role: 'admin' })
+      const token = await signJWT({ role: 'admin' }, jwtSecret)
       const cookie = `admin_token=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`
       return json({ ok: true, token }, 200, cookie)
     }
 
     /* ---- 验证 token ---- */
     if (route === '/auth' && request.method === 'GET') {
-      const ok = await requireAuth(request)
+      const ok = await requireAuth(request, jwtSecret)
       return json({ ok })
     }
 
     /* ---- 以下路由需要鉴权 ---- */
-    const authed = await requireAuth(request)
+    const authed = await requireAuth(request, jwtSecret)
     if (!authed) return json({ error: '未授权' }, 401)
 
     /* ---- 概览面板 ---- */

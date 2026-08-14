@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { GlobalPlayer } from '@/components/music/GlobalPlayer'
 import { DynamicBackground } from '@/components/background/DynamicBackground'
@@ -8,28 +9,40 @@ import { FloatingMiniPlayer } from '@/components/home/FloatingMiniPlayer'
 import { CustomCursor } from '@/components/home/CustomCursor'
 import { LoadingAnimation } from '@/components/home/LoadingAnimation'
 import { ImageLightbox } from '@/components/home/ImageLightbox'
-import { FloatingBackToTop } from '@/components/home/FloatingBackToTop'
 import { Layout } from '@/components/layout/Layout'
-import Home from '@/pages/Home'
-import ArticleDetail from '@/pages/ArticleDetail'
-import Archive from '@/pages/Archive'
-import Tags from '@/pages/Tags'
-import Music from '@/pages/Music'
-import Friends from '@/pages/Friends'
-import My from '@/pages/My'
-import Moments from '@/pages/Moments'
-import Gallery from '@/pages/Gallery'
-import Shuoshuo from '@/pages/Shuoshuo'
-import Login from '@/pages/Login'
-import AdminLogin from '@/pages/admin/AdminLogin'
-import AdminLayout from '@/pages/admin/AdminLayout'
-import Dashboard from '@/pages/admin/Dashboard'
-import ArticleManage from '@/pages/admin/ArticleManage'
-import ShuoshuoManage from '@/pages/admin/ShuoshuoManage'
-import CommentManage from '@/pages/admin/CommentManage'
-import FriendManage from '@/pages/admin/FriendManage'
-import StatsView from '@/pages/admin/StatsView'
 import { RequireAdmin } from '@/components/admin/RequireAdmin'
+
+// 前台页面 — 懒加载
+const Home = lazy(() => import('@/pages/Home'))
+const ArticleDetail = lazy(() => import('@/pages/ArticleDetail'))
+const Archive = lazy(() => import('@/pages/Archive'))
+const Tags = lazy(() => import('@/pages/Tags'))
+const Music = lazy(() => import('@/pages/Music'))
+const Friends = lazy(() => import('@/pages/Friends'))
+const My = lazy(() => import('@/pages/My'))
+const Moments = lazy(() => import('@/pages/Moments'))
+const Gallery = lazy(() => import('@/pages/Gallery'))
+const Shuoshuo = lazy(() => import('@/pages/Shuoshuo'))
+const Login = lazy(() => import('@/pages/Login'))
+const NotFound = lazy(() => import('@/pages/NotFound'))
+
+// 后台页面 — 独立分割
+const AdminLogin = lazy(() => import('@/pages/admin/AdminLogin'))
+const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
+const Dashboard = lazy(() => import('@/pages/admin/Dashboard'))
+const ArticleManage = lazy(() => import('@/pages/admin/ArticleManage'))
+const ShuoshuoManage = lazy(() => import('@/pages/admin/ShuoshuoManage'))
+const CommentManage = lazy(() => import('@/pages/admin/CommentManage'))
+const FriendManage = lazy(() => import('@/pages/admin/FriendManage'))
+const StatsView = lazy(() => import('@/pages/admin/StatsView'))
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
 
 /**
  * App 根组件
@@ -54,39 +67,42 @@ export default function App() {
       {!isAdmin && <DynamicBackground />}
 
       {/* 带 Layout 的路由 */}
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/article/:id" element={<ArticleDetail />} />
-          <Route path="/archive" element={<Archive />} />
-          <Route path="/tags" element={<Tags />} />
-          <Route path="/music" element={<Music />} />
-          <Route path="/friends" element={<Friends />} />
-          <Route path="/my" element={<My />} />
-          <Route path="/moments" element={<Moments />} />
-          <Route path="/shuoshuo" element={<Shuoshuo />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/login" element={<Login />} />
-        </Route>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/article/:id" element={<ArticleDetail />} />
+            <Route path="/archive" element={<Archive />} />
+            <Route path="/tags" element={<Tags />} />
+            <Route path="/music" element={<Music />} />
+            <Route path="/friends" element={<Friends />} />
+            <Route path="/my" element={<My />} />
+            <Route path="/moments" element={<Moments />} />
+            <Route path="/shuoshuo" element={<Shuoshuo />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
 
-        {/* 后台管理路由（独立于前台 Layout） */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
-          path="/admin"
-          element={
-            <RequireAdmin>
-              <AdminLayout />
-            </RequireAdmin>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="articles" element={<ArticleManage />} />
-          <Route path="shuoshuo" element={<ShuoshuoManage />} />
-          <Route path="comments" element={<CommentManage />} />
-          <Route path="friends" element={<FriendManage />} />
-          <Route path="stats" element={<StatsView />} />
-        </Route>
-      </Routes>
+          {/* 后台管理路由（独立于前台 Layout） */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="articles" element={<ArticleManage />} />
+            <Route path="shuoshuo" element={<ShuoshuoManage />} />
+            <Route path="comments" element={<CommentManage />} />
+            <Route path="friends" element={<FriendManage />} />
+            <Route path="stats" element={<StatsView />} />
+          </Route>
+        </Routes>
+      </Suspense>
 
       {/* 全局音乐播放器（前台显示） */}
       {!isAdmin && <GlobalPlayer />}
@@ -96,9 +112,6 @@ export default function App() {
 
       {/* 左下角迷你音乐播放器（前台显示） */}
       {!isAdmin && <FloatingMiniPlayer />}
-
-      {/* 返回顶部按钮（前台显示） */}
-      {!isAdmin && <FloatingBackToTop />}
 
       {/* Live2D 看板娘（右下角，前台显示） */}
       {!isAdmin && <Live2DWidget />}
