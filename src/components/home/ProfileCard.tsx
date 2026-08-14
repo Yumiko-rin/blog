@@ -3,6 +3,7 @@ import { FestivalAvatar } from '@/components/home/FestivalAvatar'
 import { SignatureDisplay } from '@/components/home/SignatureDisplay'
 import { FontSelector } from '@/components/home/FontSelector'
 import { ARTICLES } from '@/data/articles'
+import { getCurrentAvatar } from '@/data/avatars'
 
 /**
  * ProfileCard 增强版个人信息卡片
@@ -13,12 +14,13 @@ export function ProfileCard() {
   const totalArticles = ARTICLES.length
   const totalTags = new Set(ARTICLES.flatMap(a => a.tags)).size
   const totalViews = ARTICLES.reduce((sum, a) => sum + (a.views || 0), 0)
+  const avatar = getCurrentAvatar()
 
   return (
     <div className="widget-card p-4">
       <Link to="/my" className="flex flex-col items-center gap-3">
         {/* 节日头像边框 */}
-        <FestivalAvatar size={80} />
+        <FestivalAvatar size={80} src={avatar} />
         <div className="text-center">
           <div className="font-bold rainbow-name text-lg">喵音</div>
           <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">用代码和音乐构建数字花园</div>
