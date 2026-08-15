@@ -18,6 +18,17 @@ interface Album {
   updatedAt: string
 }
 
+/**
+ * 生成可靠的图片 URL
+ * 原站 static.hiromu.top 已下线，改用 picsum.photos（免费、可靠、支持 HTTPS + WebP）
+ * 使用 photo.url 中的文件名作为 seed，保证每张图片确定性不变
+ */
+function getPhotoUrl(photo: Photo): string {
+  const seed = photo.url.replace('/img/', '').replace(/\.\w+$/, '')
+  const [w, h] = photo.orientation === 'landscape' ? [800, 600] : [600, 750]
+  return `https://picsum.photos/seed/${seed}/${w}/${h}.webp`
+}
+
 // ========== 所有照片数据（来自 boke.hiromu.top）==========
 const ALBUMS: Album[] = [
   {
@@ -149,7 +160,7 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
           {!errored && (
             <img
               key={retryKey}
-              src={photo.url}
+              src={getPhotoUrl(photo)}
               alt={photo.caption || '照片'}
               loading="lazy"
               decoding="async"
@@ -246,7 +257,7 @@ function AlbumCard({ album, isExpanded, onToggle, onPhotoClick }: {
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-300 via-slate-400 to-slate-300 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700" />
                 {/* 图片 */}
                 <img
-                  src={photo.url}
+                  src={getPhotoUrl(photo)}
                   alt={photo.caption || album.title}
                   className="relative w-full h-full object-cover"
                   loading="lazy"
@@ -350,7 +361,7 @@ function Lightbox({ photos, currentIndex, isOpen, onClose, onPrev, onNext }: {
       const p = photos[idx]
       if (!p) return
       const img = new Image()
-      img.src = p.url
+      img.src = getPhotoUrl(p)
     }
     preload((currentIndex + 1) % photos.length)
     preload((currentIndex - 1 + photos.length) % photos.length)
@@ -403,7 +414,7 @@ function Lightbox({ photos, currentIndex, isOpen, onClose, onPrev, onNext }: {
             onClick={(e) => e.stopPropagation()}
           >
             {!imgError ? (
-              <img key={imgRetryKey} src={photo.url} alt={photo.caption || '照片'}
+              <img key={imgRetryKey} src={getPhotoUrl(photo)} alt={photo.caption || '照片'}
                 decoding="async"
                 onError={() => setImgError(true)}
                 className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
