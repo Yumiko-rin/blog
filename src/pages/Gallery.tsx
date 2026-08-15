@@ -19,14 +19,21 @@ interface Album {
 }
 
 /**
- * 生成可靠的图片 URL
- * 原站 static.hiromu.top 已下线，改用 picsum.photos（免费、可靠、支持 HTTPS + WebP）
- * 使用 photo.url 中的文件名作为 seed，保证每张图片确定性不变
+ * 生成本地画廊图片 URL
+ * 原站 static.hiromu.top 已下线，改用本地预生成的动漫风格图片
+ * 每个相册 4 张图片，按照片索引循环使用
  */
+const IMAGES_PER_ALBUM = 4
+
 function getPhotoUrl(photo: Photo): string {
-  const seed = photo.url.replace('/img/', '').replace(/\.\w+$/, '')
-  const [w, h] = photo.orientation === 'landscape' ? [800, 600] : [600, 750]
-  return `https://picsum.photos/seed/${seed}/${w}/${h}.webp`
+  for (const album of ALBUMS) {
+    const idx = album.photos.findIndex(p => p.id === photo.id)
+    if (idx !== -1) {
+      const imageNum = (idx % IMAGES_PER_ALBUM) + 1
+      return `/img/gallery/album${album.id}_${imageNum}.jpg?v=2`
+    }
+  }
+  return '/img/gallery/album2_1.jpg?v=2'
 }
 
 // ========== 所有照片数据（来自 boke.hiromu.top）==========
@@ -131,6 +138,7 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
+  const retryCount = useRef(0)
 
   const rotation = (() => {
     const seed = photo.id.charCodeAt(0) + photo.id.charCodeAt(photo.id.length - 1)
@@ -165,7 +173,14 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
               loading="lazy"
               decoding="async"
               onLoad={() => setLoaded(true)}
-              onError={() => setErrored(true)}
+              onError={() => {
+                if (retryCount.current < 2) {
+                  retryCount.current++
+                  setTimeout(() => setRetryKey(k => k + 1), 500)
+                } else {
+                  setErrored(true)
+                }
+              }}
               className="w-full h-full object-cover group-hover:scale-105"
               style={{
                 opacity: loaded ? 1 : 0,
@@ -178,7 +193,7 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
               <Camera className="w-8 h-8 text-slate-400" />
               <span className="text-[10px] text-slate-400">加载失败</span>
               <button type="button"
-                onClick={(e) => { e.stopPropagation(); setErrored(false); setLoaded(false); setRetryKey(k => k + 1) }}
+                onClick={(e) => { e.stopPropagation(); retryCount.current = 0; setErrored(false); setLoaded(false); setRetryKey(k => k + 1) }}
                 className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-300 dark:bg-slate-600 text-[10px] text-slate-600 dark:text-slate-200 hover:bg-accent hover:text-white transition-colors">
                 <RotateCw className="w-3 h-3" /> 重试
               </button>
