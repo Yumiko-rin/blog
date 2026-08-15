@@ -515,28 +515,26 @@ export default function Gallery() {
         {sortedAlbums.map((album, albumIndex) => {
           const isExpanded = expandedId === album.id
           const isHidden = expandedId !== null && !isExpanded
+          if (isHidden) return null
 
           return (
-            <AnimatePresence key={album.id}>
-              {!isHidden && (
-                <motion.div
-                  layout
-                  initial={expandedId === null ? { opacity: 0, y: 30 } : false}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: expandedId === null ? albumIndex * 0.1 : 0 }}
-                  className={isExpanded ? 'sm:col-span-2 lg:col-span-3' : ''}
-                >
-                  <div ref={isExpanded ? expandedRef : undefined}>
-                    <AlbumCard
-                      album={album}
-                      isExpanded={isExpanded}
-                      onToggle={() => setExpandedId((prev) => (prev === album.id ? null : album.id))}
-                      onPhotoClick={openLightbox}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <motion.div
+              key={album.id}
+              layout
+              initial={expandedId === null ? { opacity: 0, y: 20 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: expandedId === null ? Math.min(albumIndex * 0.08, 0.4) : 0 }}
+              className={isExpanded ? 'sm:col-span-2 lg:col-span-3' : ''}
+            >
+              <div ref={isExpanded ? expandedRef : undefined}>
+                <AlbumCard
+                  album={album}
+                  isExpanded={isExpanded}
+                  onToggle={() => setExpandedId((prev) => (prev === album.id ? null : album.id))}
+                  onPhotoClick={openLightbox}
+                />
+              </div>
+            </motion.div>
           )
         })}
       </div>
