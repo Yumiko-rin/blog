@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Check, X, Link2, Globe, Loader2, ExternalLink } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
+import { useToast } from '@/hooks/useToast'
+import { Toast } from '@/components/admin/Toast'
 
 /** 后台友链条目 */
 interface FriendItem {
@@ -27,7 +29,7 @@ export default function FriendManage() {
   const [friends, setFriends] = useState<FriendItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState('')
+  const { toast, showToast } = useToast()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
   /** 加载友链列表 */
@@ -46,13 +48,7 @@ export default function FriendManage() {
 
   useEffect(() => {
     void load()
-  }, [])
-
-  /** 显示提示 */
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 更新友链状态 */
   const updateStatus = async (id: string, status: FriendStatus) => {
@@ -222,18 +218,7 @@ export default function FriendManage() {
       )}
 
       {/* Toast 提示 */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2.5 text-sm text-white"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast message={toast} />
     </div>
   )
 }

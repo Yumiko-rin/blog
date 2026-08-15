@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'r
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, FileText, Loader2, Tag, Calendar, Upload, Info, ChevronDown } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
+import { useToast } from '@/hooks/useToast'
+import { Toast } from '@/components/admin/Toast'
 
 /** 后台文章条目 */
 interface ArticleItem {
@@ -52,7 +54,7 @@ export default function ArticleManage() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState('')
+  const { toast, showToast } = useToast()
   const [uploading, setUploading] = useState(false)
   const [showHint, setShowHint] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -74,12 +76,6 @@ export default function ArticleManage() {
   useEffect(() => {
     void load()
   }, [])
-
-  /** 显示提示（自动消失） */
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
 
   /** 打开新建弹窗 */
   const openCreate = () => {
@@ -549,18 +545,7 @@ excerpt: 文章摘要
       </AnimatePresence>
 
       {/* Toast 提示 */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2.5 text-sm text-white"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast message={toast} />
     </div>
   )
 }

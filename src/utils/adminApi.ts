@@ -14,7 +14,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE}${path}`, { ...options, headers })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as any)?.error || `HTTP ${res.status}`)
+  if (!res.ok) {
+    if (res.status === 401) useAdminStore.getState().logout()
+    throw new Error((data as any)?.error || `HTTP ${res.status}`)
+  }
   return data as T
 }
 

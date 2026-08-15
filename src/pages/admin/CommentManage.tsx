@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Trash2, MessageSquare, Search, User, Clock, Link2 } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
+import { useToast } from '@/hooks/useToast'
+import { Toast } from '@/components/admin/Toast'
 
 /** 后台评论条目 */
 interface CommentItem {
@@ -20,7 +22,7 @@ export default function CommentManage() {
   const [loading, setLoading] = useState(true)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState('')
+  const { toast, showToast } = useToast()
   const [keyword, setKeyword] = useState('')
 
   /** 加载评论列表 */
@@ -40,13 +42,7 @@ export default function CommentManage() {
 
   useEffect(() => {
     void load()
-  }, [])
-
-  /** 显示提示 */
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 确认删除 */
   const confirmDelete = async () => {
@@ -249,18 +245,7 @@ export default function CommentManage() {
       </AnimatePresence>
 
       {/* Toast 提示 */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2.5 text-sm text-white"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast message={toast} />
     </div>
   )
 }

@@ -30,6 +30,8 @@ interface MusicState {
   isFullPanelOpen: boolean
   /** 已加载的歌单（网易云或本地） */
   playlists: Playlist[]
+  /** 音频加载错误信息 */
+  audioError: string | null
 
   /* ===== Actions ===== */
   setCurrentSong: (song: Song, playlistId?: string | number) => void
@@ -48,6 +50,8 @@ interface MusicState {
   setPlaylists: (playlists: Playlist[]) => void
   /** 回写歌曲时长到歌单数据（播放时从 audio.loadedmetadata 获取） */
   updateSongDuration: (songId: string | number, duration: number) => void
+  /** 设置音频错误信息 */
+  setAudioError: (msg: string | null) => void
 }
 
 /** 模式循环顺序 */
@@ -78,9 +82,10 @@ export const useMusicStore = create<MusicState>((set, get) => {
   currentPlaylistId: null,
   isFullPanelOpen: false,
   playlists: PLAYLISTS,
+  audioError: null,
 
   setCurrentSong: (song, playlistId) => {
-    set({ currentSong: song, isPlaying: true, currentTime: 0 })
+    set({ currentSong: song, isPlaying: true, currentTime: 0, audioError: null })
     if (playlistId !== undefined) set({ currentPlaylistId: playlistId })
     // 写入播放历史
     get().addToHistory(song.id)
@@ -89,7 +94,7 @@ export const useMusicStore = create<MusicState>((set, get) => {
 
   // 仅预设歌曲信息，不改变播放状态（进入站点时调用，避免浏览器自动播放策略拦截）
   presetCurrentSong: (song, playlistId) => {
-    set({ currentSong: song })
+    set({ currentSong: song, audioError: null })
     if (playlistId !== undefined) set({ currentPlaylistId: playlistId })
     get().addToHistory(song.id)
     void ensureLyric(song)
@@ -143,6 +148,8 @@ export const useMusicStore = create<MusicState>((set, get) => {
         : s.currentSong,
     }))
   },
+
+  setAudioError: (msg) => set({ audioError: msg }),
   }
 })
 

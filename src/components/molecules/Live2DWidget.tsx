@@ -26,6 +26,14 @@ export function Live2DWidget() {
     s.async = true
     s.onerror = () => console.error('[Live2DWidget] 看板娘脚本加载失败:', AUTOLOAD_SRC)
     document.body.appendChild(s)
+
+    return () => {
+      s.remove()
+      const widget = document.getElementById('live2d-widget')
+      if (widget) widget.remove()
+      const canvases = document.querySelectorAll('canvas[data-live2d]')
+      canvases.forEach(c => c.remove())
+    }
   }, [])
 
   // 看板娘由上面的 autoload 脚本自行渲染到页面右下角

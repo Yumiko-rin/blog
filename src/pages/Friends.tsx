@@ -157,7 +157,7 @@ function ApplyModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
       <div
         className="relative w-full max-w-lg rounded-3xl p-6 max-h-[85vh] overflow-y-auto

@@ -42,8 +42,8 @@ export default function Tags() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <header className="mb-8 text-center">
-        <h1 className="text-3xl font-bold sm:text-4xl text-gray-800 dark:text-gray-200">标签分类</h1>
-        <p className="mt-2 text-gray-500">通过标签找到你感兴趣的内容～</p>
+        <h1 className="text-3xl font-bold sm:text-4xl text-[rgb(var(--text-primary))]">标签分类</h1>
+        <p className="mt-2 text-[rgb(var(--text-secondary))]">通过标签找到你感兴趣的内容～</p>
       </header>
 
       {/* 标签云 */}
@@ -56,11 +56,11 @@ export default function Tags() {
               onClick={() => isActive ? setSearchParams({}) : setSearchParams({ tag })}
               className={`card inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-indigo-500/15 text-indigo-500 ring-2 ring-indigo-500'
-                  : 'hover:bg-indigo-500/10 text-gray-700 dark:text-gray-300'
+                  ? 'bg-accent/15 text-accent ring-2 ring-accent'
+                  : 'hover:bg-accent/10 text-[rgb(var(--text-secondary))]'
               }`}>
               #{tag}
-              <span className="text-xs text-gray-400">({count})</span>
+              <span className="text-xs text-[rgb(var(--text-tertiary))]">({count})</span>
             </button>
           )
         })}
@@ -69,15 +69,15 @@ export default function Tags() {
       {/* 筛选结果 */}
       {activeTag ? (
         <div>
-          <h2 className="mb-4 text-lg font-bold">标签「{activeTag}」下的文章</h2>
+          <h2 className="mb-4 text-lg font-bold text-[rgb(var(--text-primary))]">标签「{activeTag}」下的文章</h2>
           {displayedArticles.length > 0 ? (
             <div className="flex flex-col gap-4">
               {displayedArticles.map((article) => (
                 <Link key={article.id} to={`/article/${article.id}`}>
-                  <GlassCard className="group p-4 hover:shadow-lg hover:shadow-indigo-500/10 transition-all">
-                    <h3 className="font-bold group-hover:text-indigo-500 transition-colors">{article.title}</h3>
-                    <p className="mt-1 line-clamp-2 text-sm text-gray-500">{article.excerpt}</p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+                  <GlassCard className="group p-4 hover:shadow-lg hover:shadow-accent/10 transition-all">
+                    <h3 className="font-bold group-hover:text-accent transition-colors">{article.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-[rgb(var(--text-secondary))]">{article.excerpt}</p>
+                    <div className="mt-2 flex items-center gap-3 text-xs text-[rgb(var(--text-tertiary))]">
                       <span>{article.date}</span>
                       <span>{getArticleViews(article)} 阅读</span>
                     </div>
@@ -86,11 +86,11 @@ export default function Tags() {
               ))}
             </div>
           ) : (
-            <div className="py-12 text-center text-gray-500">该标签下暂无文章</div>
+            <div className="py-12 text-center text-[rgb(var(--text-secondary))]">该标签下暂无文章</div>
           )}
         </div>
       ) : (
-        <div className="py-12 text-center text-gray-500">← 点击上方标签查看文章</div>
+        <div className="py-12 text-center text-[rgb(var(--text-secondary))]">← 点击上方标签查看文章</div>
       )}
     </div>
   )

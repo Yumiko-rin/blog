@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'r
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Pencil, Trash2, X, MessageCircle, Loader2, Smile, Calendar, Upload } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
+import { useToast } from '@/hooks/useToast'
+import { Toast } from '@/components/admin/Toast'
 
 /** 后台说说条目 */
 interface ShuoshuoItem {
@@ -21,23 +23,23 @@ interface ShuoshuoForm {
   date: string
 }
 
-const EMPTY_FORM: ShuoshuoForm = {
+const createEmptyForm = (): ShuoshuoForm => ({
   content: '',
   mood: '',
   images: '',
   date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-}
+})
 
 export default function ShuoshuoManage() {
   const [list, setList] = useState<ShuoshuoItem[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState<ShuoshuoForm>(EMPTY_FORM)
+  const [form, setForm] = useState<ShuoshuoForm>(createEmptyForm)
   const [isEditing, setIsEditing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState('')
+  const { toast, showToast } = useToast()
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pendingMoodRef = useRef<string>('')
@@ -58,17 +60,11 @@ export default function ShuoshuoManage() {
 
   useEffect(() => {
     void load()
-  }, [])
-
-  /** 显示提示（自动消失） */
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 打开新建弹窗 */
   const openCreate = () => {
-    setForm(EMPTY_FORM)
+    setForm(createEmptyForm())
     setIsEditing(false)
     setModalOpen(true)
   }
@@ -430,18 +426,7 @@ export default function ShuoshuoManage() {
       </AnimatePresence>
 
       {/* Toast 提示 */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 px-5 py-2.5 text-sm text-white"
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Toast message={toast} />
     </div>
   )
 }

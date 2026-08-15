@@ -43,6 +43,7 @@ export function useAudioPlayer() {
   const setDuration = useMusicStore((s) => s.setDuration)
   const setIsPlaying = useMusicStore((s) => s.setIsPlaying)
   const setCurrentSong = useMusicStore((s) => s.setCurrentSong)
+  const setAudioError = useMusicStore((s) => s.setAudioError)
 
   const audio = audioRef.current
 
@@ -113,6 +114,8 @@ export function useAudioPlayer() {
       const err = audio.error
       console.error('[audio] error code:', err?.code, 'src:', audio.src?.slice(0, 80))
       setIsPlaying(false)
+      const song = useMusicStore.getState().currentSong
+      setAudioError(`「${song?.name || '当前歌曲'}」加载失败，请尝试切换其他歌曲`)
     }
 
     audio.addEventListener('timeupdate', onTimeUpdate)

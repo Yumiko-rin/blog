@@ -302,7 +302,7 @@ export function GeneralSettings() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 

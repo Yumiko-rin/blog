@@ -144,7 +144,7 @@ function SortableAppItem({ app, onClick }: { app: ToolApp; onClick: () => void }
 
 function HotBoardTool() {
   const [items, setItems] = useState<any[]>([]); const [loading, setLoading] = useState(true)
-  useEffect(() => { fetch(`${API}/misc/hotboard?type=weibo`).then(r => r.json()).then(d => setItems(d.list || [])).catch(() => {}).finally(() => setLoading(false)) }, [])
+  useEffect(() => { const ac = new AbortController(); fetch(`${API}/misc/hotboard?type=weibo`, { signal: ac.signal }).then(r => r.json()).then(d => setItems(d.list || [])).catch(() => {}).finally(() => { if (!ac.signal.aborted) setLoading(false) }); return () => ac.abort() }, [])
   if (loading) return <div className="p-4 flex items-center justify-center h-full"><RefreshCw size={20} className="animate-spin text-accent" /></div>
   return (<div className="p-3 space-y-1 overflow-y-auto h-full">{items.length === 0 ? <p className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无数据</p> : items.slice(0, 20).map((item: any, i: number) => (<div key={i} className="flex items-center gap-3 py-2 px-2 rounded-xl hover:bg-[rgb(var(--bg-secondary))] transition-colors cursor-pointer"><span className={`w-5 text-center text-xs font-bold ${i < 3 ? 'text-red-500' : 'text-[rgb(var(--text-secondary))]'}`}>{item.index || i + 1}</span><span className="text-sm text-[rgb(var(--text-primary))] flex-1 truncate">{item.title}</span>{item.hot_value && <span className="text-[10px] text-red-400 shrink-0">{item.hot_value}</span>}</div>))}</div>)
 }
@@ -583,33 +583,36 @@ function GitHubRepoTool() {
 function HistoryTodayTool() {
   const [items, setItems] = useState<any[]>([]); const [loading, setLoading] = useState(true); const [currentDate] = useState(new Date())
   const month = currentDate.getMonth() + 1; const day = currentDate.getDate()
-  const loadData = async () => {
+  const loadData = async (signal?: AbortSignal) => {
     setLoading(true)
     try {
-      const r = await fetch('https://v2.xxapi.cn/api/history')
+      const r = await fetch('https://v2.xxapi.cn/api/history', signal ? { signal } : undefined)
       const d = await r.json()
+      if (signal?.aborted) return
       const list = (d.data || []).map((s: string) => {
         const match = s.match(/^(\d+)年(\d+)月(\d+)日\s*(.*)$/)
         return match ? { year: match[1], title: match[4], description: '' } : { year: '', title: s, description: '' }
       })
       setItems(list)
     } catch {
+      if (signal?.aborted) return
       try {
-        const r2 = await fetch(`${API}/history/programmer/today`)
+        const r2 = await fetch(`${API}/history/programmer/today`, signal ? { signal } : undefined)
         const d2 = await r2.json()
+        if (signal?.aborted) return
         setItems(d2.events || [])
       } catch { setItems([]) }
     }
-    setLoading(false)
+    if (!signal?.aborted) setLoading(false)
   }
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { const ac = new AbortController(); void loadData(ac.signal); return () => ac.abort() }, [])
   if (loading) return <div className="p-4 flex items-center justify-center h-full"><RefreshCw size={20} className="animate-spin text-accent" /></div>
-  return (<div className="p-3 space-y-2 overflow-y-auto h-full"><div className="flex items-center justify-between mb-2 px-1"><div className="text-xs font-bold text-accent">📅 {month}月{day}日 历史上的今天</div><button type="button" onClick={loadData} className="text-[10px] text-[rgb(var(--text-secondary))] hover:text-accent transition-colors">刷新</button></div>{items.length === 0 ? <p className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无数据</p> : items.slice(0, 20).map((item: any, i: number) => (<div key={i} className="p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="text-xs text-accent font-bold mb-1">{item.year ? `${item.year}年` : ''}</div><div className="text-sm text-[rgb(var(--text-primary))] font-medium">{item.title}</div>{item.description && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1 line-clamp-2">{item.description}</div>}</div>))}</div>)
+  return (<div className="p-3 space-y-2 overflow-y-auto h-full"><div className="flex items-center justify-between mb-2 px-1"><div className="text-xs font-bold text-accent">📅 {month}月{day}日 历史上的今天</div><button type="button" onClick={() => loadData()} className="text-[10px] text-[rgb(var(--text-secondary))] hover:text-accent transition-colors">刷新</button></div>{items.length === 0 ? <p className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无数据</p> : items.slice(0, 20).map((item: any, i: number) => (<div key={i} className="p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="text-xs text-accent font-bold mb-1">{item.year ? `${item.year}年` : ''}</div><div className="text-sm text-[rgb(var(--text-primary))] font-medium">{item.title}</div>{item.description && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1 line-clamp-2">{item.description}</div>}</div>))}</div>)
 }
 
 function DailyWordTool() {
   const [data, setData] = useState<any>(null); const [loading, setLoading] = useState(true)
-  useEffect(() => { fetch(`${API}/daily/word`).then(r => r.json()).then(d => setData(d)).catch(() => {}).finally(() => setLoading(false)) }, [])
+  useEffect(() => { const ac = new AbortController(); fetch(`${API}/daily/word`, { signal: ac.signal }).then(r => r.json()).then(d => setData(d)).catch(() => {}).finally(() => { if (!ac.signal.aborted) setLoading(false) }); return () => ac.abort() }, [])
   if (loading) return <div className="p-4 flex items-center justify-center h-full"><RefreshCw size={20} className="animate-spin text-accent" /></div>
   const words = data?.words || []
   return (<div className="p-3 space-y-2 overflow-y-auto h-full"><div className="text-xs text-[rgb(var(--text-secondary))] mb-2">{data?.date || '今日'}</div>{words.map((w: any, i: number) => (<div key={i} className="p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="font-bold text-accent">{w.word}</div><div className="text-xs text-[rgb(var(--text-secondary))] mt-1">{w.translation}</div>{w.phonetic && <div className="text-xs text-[rgb(var(--text-secondary))] mt-1">{w.phonetic}</div>}</div>))}</div>)
@@ -623,11 +626,12 @@ function BMITool() {
 
 function GoldPriceTool() {
   const [price, setPrice] = useState<any>(null); const [loading, setLoading] = useState(true)
-  const load = async () => {
+  const load = async (signal?: AbortSignal) => {
     setLoading(true)
     try {
-      const r = await fetch('https://v2.xxapi.cn/api/goldprice')
+      const r = await fetch('https://v2.xxapi.cn/api/goldprice', signal ? { signal } : undefined)
       const d = await r.json()
+      if (signal?.aborted) return
       if (d && d.code === 200 && d.data) {
         const bars = (d.data.bank_gold_bar_price || []).map((b: any) => ({ name: b.bank, price: b.price, change: '' }))
         const recycle = (d.data.gold_recycle_price || []).map((b: any) => ({ name: b.gold_type, price: b.recycle_price, change: '' }))
@@ -637,13 +641,13 @@ function GoldPriceTool() {
         setPrice({ items: [], error: true })
       }
     } catch {
-      setPrice({ items: [], error: true })
+      if (!signal?.aborted) setPrice({ items: [], error: true })
     }
-    setLoading(false)
+    if (!signal?.aborted) setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const ac = new AbortController(); void load(ac.signal); return () => ac.abort() }, [])
   if (loading) return <div className="p-4 flex items-center justify-center h-full"><RefreshCw size={20} className="animate-spin text-accent" /></div>
-  return (<div className="p-4"><div className="flex items-center justify-between mb-4"><div className="text-xs text-[rgb(var(--text-secondary))]">今日金价（元/克）</div><button type="button" onClick={load} className="text-[10px] text-accent hover:underline">刷新</button></div>{price?.error || !price?.items?.length ? <div className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无法获取金价数据</div> : <div className="space-y-2">{price.items.map((item: any, i: number) => (<div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><span className="text-sm font-medium text-[rgb(var(--text-primary))]">{item.name}</span><div className="text-right"><span className="text-sm font-bold text-accent">¥{item.price}/克</span>{item.change && <span className={`text-xs ml-2 ${String(item.change).startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>{item.change}</span>}</div></div>))}</div>}{price?.update_time && <div className="text-[10px] text-center text-[rgb(var(--text-secondary))] mt-3">更新: {price.update_time}</div>}</div>)
+  return (<div className="p-4"><div className="flex items-center justify-between mb-4"><div className="text-xs text-[rgb(var(--text-secondary))]">今日金价（元/克）</div><button type="button" onClick={() => load()} className="text-[10px] text-accent hover:underline">刷新</button></div>{price?.error || !price?.items?.length ? <div className="text-center text-sm text-[rgb(var(--text-secondary))] py-8">暂无法获取金价数据</div> : <div className="space-y-2">{price.items.map((item: any, i: number) => (<div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><span className="text-sm font-medium text-[rgb(var(--text-primary))]">{item.name}</span><div className="text-right"><span className="text-sm font-bold text-accent">¥{item.price}/克</span>{item.change && <span className={`text-xs ml-2 ${String(item.change).startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>{item.change}</span>}</div></div>))}</div>}{price?.update_time && <div className="text-[10px] text-center text-[rgb(var(--text-secondary))] mt-3">更新: {price.update_time}</div>}</div>)
 }
 
 function RandomImageTool() {
@@ -675,10 +679,10 @@ function BingDailyTool() {
 
 function SayingTool() {
   const [saying, setSaying] = useState<any>(null); const [loading, setLoading] = useState(true)
-  const load = () => { setLoading(true); fetch(`${API}/saying/random`).then(r => r.json()).then(d => setSaying(d)).catch(() => {}).finally(() => setLoading(false)) }
-  useEffect(() => { load() }, [])
+  const load = (signal?: AbortSignal) => { setLoading(true); fetch(`${API}/saying/random`, signal ? { signal } : undefined).then(r => r.json()).then(d => { if (!signal?.aborted) setSaying(d) }).catch(() => {}).finally(() => { if (!signal?.aborted) setLoading(false) }) }
+  useEffect(() => { const ac = new AbortController(); load(ac.signal); return () => ac.abort() }, [])
   if (loading) return <div className="p-4 flex items-center justify-center h-full"><RefreshCw size={20} className="animate-spin text-accent" /></div>
-  return <div className="p-4 flex flex-col h-full"><div className="flex-1 flex items-center justify-center mb-4"><p className="text-sm text-[rgb(var(--text-secondary))] text-center leading-relaxed italic">"{saying?.content || '获取失败'}"</p></div>{saying?.author && <p className="text-xs text-[rgb(var(--text-secondary))] text-center mb-3">—— {saying.author}</p>}<button type="button" onClick={load} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">换一首</button></div>
+  return <div className="p-4 flex flex-col h-full"><div className="flex-1 flex items-center justify-center mb-4"><p className="text-sm text-[rgb(var(--text-secondary))] text-center leading-relaxed italic">"{saying?.content || '获取失败'}"</p></div>{saying?.author && <p className="text-xs text-[rgb(var(--text-secondary))] text-center mb-3">—— {saying.author}</p>}<button type="button" onClick={() => load()} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">换一首</button></div>
 }
 
 // ========== 计算器（带历史记录）==========
@@ -688,9 +692,24 @@ function CalculatorTool() {
   const handleOp = (op: string) => { setExpr(display + op); setDisplay('0') }
   const safeCalc = (expression: string): number => {
     const tokens = expression.match(/(\d+\.?\d*|[+\-*\/])/g) || []
-    if (tokens.length === 0) return 0; const first = tokens[0]; if (first === undefined) return 0
-    let result = parseFloat(first) || 0
-    for (let i = 1; i < tokens.length; i += 2) { const op = tokens[i]; const numStr = tokens[i + 1]; if (op === undefined || numStr === undefined) break; const num = parseFloat(numStr) || 0; if (op === '+') result += num; else if (op === '-') result -= num; else if (op === '*') result *= num; else if (op === '/' && num !== 0) result /= num }
+    if (tokens.length === 0) return 0
+    let nums: number[] = [parseFloat(tokens[0] ?? '0') || 0]
+    let ops: string[] = []
+    for (let i = 1; i < tokens.length; i += 2) { ops.push(tokens[i] ?? '+'); nums.push(parseFloat(tokens[i + 1] ?? '0') || 0) }
+    // First pass: * and /
+    const nums2: number[] = [nums[0]]
+    const ops2: string[] = []
+    for (let i = 0; i < ops.length; i++) {
+      if (ops[i] === '*') nums2[nums2.length - 1] *= nums[i + 1]
+      else if (ops[i] === '/') nums2[nums2.length - 1] = nums[i + 1] !== 0 ? nums2[nums2.length - 1] / nums[i + 1] : 0
+      else { ops2.push(ops[i]); nums2.push(nums[i + 1]) }
+    }
+    // Second pass: + and -
+    let result = nums2[0] ?? 0
+    for (let i = 0; i < ops2.length; i++) {
+      if (ops2[i] === '+') result += nums2[i + 1] ?? 0
+      else if (ops2[i] === '-') result -= nums2[i + 1] ?? 0
+    }
     return result
   }
   const handleEqual = () => { try { const result = safeCalc(expr + display); setHistory(h => [expr + display + '=' + result, ...h].slice(0, 20)); setDisplay(String(result)) } catch { setDisplay('Error') }; setExpr('') }
@@ -739,14 +758,16 @@ function PasswordTool() {
 
 // ========== 单位换算 ==========
 function ConverterTool() {
-  const [value, setValue] = useState(''); const [fromUnit, setFromUnit] = useState('km'); const [toUnit, setToUnit] = useState('mile')
+  const [value, setValue] = useState(''); const [groupIdx, setGroupIdx] = useState(0); const [fromUnit, setFromUnit] = useState('km'); const [toUnit, setToUnit] = useState('mile')
   const unitLabels: Record<string, string> = { km: '千米', mile: '英里', m: '米', kg: '千克', lb: '磅', g: '克', celsius: '°C', fahrenheit: '°F', kelvin: 'K' }
   const unitGroups = [['km', 'mile', 'm'], ['kg', 'lb', 'g'], ['celsius', 'fahrenheit', 'kelvin']]
+  const groupLabels = ['长度', '重量', '温度']
   const rates: Record<string, Record<string, number>> = { km: { mile: 0.621371, m: 1000 }, mile: { km: 1.60934, m: 1609.34 }, m: { km: 0.001, mile: 0.000621371 }, kg: { lb: 2.20462, g: 1000 }, lb: { kg: 0.453592, g: 453.592 }, g: { kg: 0.001, lb: 0.00220462 } }
   const tempConvert = (val: number, from: string, to: string): number => { if (from === to) return val; if (from === 'celsius' && to === 'fahrenheit') return val * 9 / 5 + 32; if (from === 'celsius' && to === 'kelvin') return val + 273.15; if (from === 'fahrenheit' && to === 'celsius') return (val - 32) * 5 / 9; if (from === 'fahrenheit' && to === 'kelvin') return (val - 32) * 5 / 9 + 273.15; if (from === 'kelvin' && to === 'celsius') return val - 273.15; if (from === 'kelvin' && to === 'fahrenheit') return (val - 273.15) * 9 / 5 + 32; return val }
+  const switchGroup = (idx: number) => { setGroupIdx(idx); setFromUnit(unitGroups[idx][0]); setToUnit(unitGroups[idx][1]) }
   const convert = () => { const num = parseFloat(value); if (isNaN(num)) return '—'; if (fromUnit in rates && toUnit in rates[fromUnit]) return (num * rates[fromUnit][toUnit]).toFixed(4); if (['celsius', 'fahrenheit', 'kelvin'].includes(fromUnit)) return tempConvert(num, fromUnit, toUnit).toFixed(2); return '—' }
   const getBtnClass = (u: string) => `flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${fromUnit === u ? 'bg-accent text-white' : 'bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]'}`
-  return (<div className="p-4"><div className="mb-3">{unitGroups.map(group => group.includes(fromUnit) && <div key="g" className="flex gap-1 mb-2">{group.map(u => <button key={u} type="button" onClick={() => { setFromUnit(u); setToUnit(group.find(x => x !== u) || group[0]) }} className={getBtnClass(u)}>{unitLabels[u]}</button>)}</div>)}</div><input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="输入数值" className="w-full bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-accent/30" /><div className="text-center text-xs text-[rgb(var(--text-secondary))] mb-2">{unitLabels[fromUnit]} → {unitLabels[toUnit]}</div><div className="text-center p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="text-xl font-bold text-accent">{convert()}</div><div className="text-xs text-[rgb(var(--text-secondary))]">{unitLabels[toUnit]}</div></div></div>)
+  return (<div className="p-4"><div className="flex gap-1 mb-3">{groupLabels.map((label, i) => <button key={i} type="button" onClick={() => switchGroup(i)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-medium transition-colors ${groupIdx === i ? 'bg-accent text-white' : 'bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]'}`}>{label}</button>)}</div><div className="flex gap-1 mb-3 flex-wrap">{unitGroups[groupIdx].map(u => <button key={u} type="button" onClick={() => { setFromUnit(u); setToUnit(unitGroups[groupIdx].find(x => x !== u) || unitGroups[groupIdx][0]) }} className={getBtnClass(u)}>{unitLabels[u]}</button>)}</div><input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="输入数值" className="w-full bg-[rgb(var(--bg-secondary))] rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-accent/30" /><div className="text-center text-xs text-[rgb(var(--text-secondary))] mb-2">{unitLabels[fromUnit]} → {unitLabels[toUnit]}</div><div className="text-center p-3 rounded-xl bg-[rgb(var(--bg-secondary))]"><div className="text-xl font-bold text-accent">{convert()}</div><div className="text-xs text-[rgb(var(--text-secondary))]">{unitLabels[toUnit]}</div></div></div>)
 }
 
 // ========== 进制转换 ==========
@@ -997,20 +1018,21 @@ function IPQueryTool() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const lookup = async (target?: string) => {
+  const lookup = async (target?: string, signal?: AbortSignal) => {
     setLoading(true); setError(''); setData(null)
     try {
       const query = target || ip.trim()
       const url = query ? `https://ipwho.is/${encodeURIComponent(query)}` : 'https://ipwho.is/'
-      const res = await fetch(url)
+      const res = await fetch(url, signal ? { signal } : undefined)
       const json = await res.json()
+      if (signal?.aborted) return
       if (!json.success) throw new Error(json.message || '查询失败')
       setData(json)
-    } catch (e: any) { setError(e.message || '查询失败') }
-    finally { setLoading(false) }
+    } catch (e: any) { if (!signal?.aborted) setError(e.message || '查询失败') }
+    finally { if (!signal?.aborted) setLoading(false) }
   }
 
-  useEffect(() => { lookup() }, [])
+  useEffect(() => { const ac = new AbortController(); void lookup(undefined, ac.signal); return () => ac.abort() }, [])
 
   const fields = data ? [
     { label: 'IP 地址', value: data.ip },
@@ -1189,7 +1211,7 @@ export function Toolbox() {
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className="fixed bottom-24 left-6 z-50"
           >
-            <div className="w-[320px] h-[520px] rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl shadow-black/20 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden flex flex-col">
+            <div role="dialog" aria-modal="true" aria-label="工具箱" className="w-[90vw] max-w-[320px] h-[520px] rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl shadow-2xl shadow-black/20 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/50 dark:border-slate-700/50">
                 <div className="flex items-center gap-2">

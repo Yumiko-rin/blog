@@ -130,7 +130,7 @@ export async function loadPlaylists(): Promise<Playlist[]> {
   try {
     // 跨歌单去重：同一首歌（neteaseId）只保留在第一个出现的歌单中
     const seen = new Set<number>()
-    const results = await Promise.all(
+    const settled = await Promise.allSettled(
       PLAYLIST_SOURCES.map(async (src) => {
         const res = await fetch(`/music?server=netease&type=playlist&id=${src.apiId}`)
         if (!res.ok) throw new Error(`bad status ${res.status}`)
@@ -149,6 +149,9 @@ export async function loadPlaylists(): Promise<Playlist[]> {
         return toPlaylist(picked, src)
       })
     )
+    const results = settled
+      .filter((s): s is PromiseFulfilledResult<Playlist> => s.status === 'fulfilled')
+      .map((s) => s.value)
     if (results.length === 0) throw new Error('none')
     cachedPlaylists = results
     cacheTime = Date.now()

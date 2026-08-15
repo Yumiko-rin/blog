@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Eye, Users, TrendingUp, BarChart3, Loader2 } from 'lucide-react'
+import { Eye, Users, TrendingUp, BarChart3, Loader2, RefreshCw } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
 
 /** 每日统计数据 */
@@ -38,7 +38,7 @@ export default function StatsView() {
 
   useEffect(() => {
     void load()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 取近 30 天数据并计算最大值用于柱状图高度比例 */
   const { recentDays, maxPv, avgPv, totalPv30 } = useMemo(() => {
@@ -77,8 +77,15 @@ export default function StatsView() {
 
       {/* 错误提示 */}
       {error && (
-        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
+        <div className="flex items-center gap-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3">
+          <span className="text-sm text-red-300">{error}</span>
+          <button
+            onClick={load}
+            className="ml-auto flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/20"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            重新加载
+          </button>
         </div>
       )}
 

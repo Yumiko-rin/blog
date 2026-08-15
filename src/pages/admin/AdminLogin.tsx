@@ -30,6 +30,10 @@ export default function AdminLogin() {
     setError('')
     try {
       const res = await adminApi.login(password)
+      if (!res?.token) {
+        setError('登录响应异常，未收到有效凭证')
+        return
+      }
       login(res.token)
       navigate('/admin', { replace: true })
     } catch (err) {

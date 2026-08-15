@@ -44,6 +44,9 @@ export function ImageLightbox() {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt || '图片预览'}
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm animate-[fadeIn_0.2s_ease]"
       onClick={close}
     >

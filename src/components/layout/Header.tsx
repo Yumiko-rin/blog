@@ -27,13 +27,20 @@ export function Header() {
 
   useEffect(() => {
     if (!mobileOpen) return
-    const handler = (e: MouseEvent) => {
+    const onClickOutside = (e: MouseEvent) => {
       if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
         setMobileOpen(false)
       }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('keydown', onKeyDown)
+    }
   }, [mobileOpen])
 
   const isActive = (path: string) => {
@@ -67,6 +74,7 @@ export function Header() {
                   key={link.path}
                   to={link.path}
                   onClick={handleNavClick}
+                  aria-current={active ? 'page' : undefined}
                   className={`relative py-1 transition-all duration-200 ${
                     active
                       ? 'text-accent font-bold'
@@ -144,6 +152,7 @@ export function Header() {
                       playClickSound()
                       setMobileOpen(false)
                     }}
+                    aria-current={active ? 'page' : undefined}
                     className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
                       active
                         ? 'bg-accent/10 text-accent'

@@ -5,7 +5,6 @@ import { GlobalPlayer } from '@/components/music/GlobalPlayer'
 import { DynamicBackground } from '@/components/background/DynamicBackground'
 import { Live2DWidget } from '@/components/molecules/Live2DWidget'
 import { Toolbox } from '@/components/home/Toolbox'
-import { FloatingMiniPlayer } from '@/components/home/FloatingMiniPlayer'
 import { CustomCursor } from '@/components/home/CustomCursor'
 import { LoadingAnimation } from '@/components/home/LoadingAnimation'
 import { ImageLightbox } from '@/components/home/ImageLightbox'
@@ -109,9 +108,6 @@ export default function App() {
 
       {/* 左下角工具箱（前台显示） */}
       {!isAdmin && <Toolbox />}
-
-      {/* 左下角迷你音乐播放器（前台显示） */}
-      {!isAdmin && <FloatingMiniPlayer />}
 
       {/* Live2D 看板娘（右下角，前台显示） */}
       {!isAdmin && <Live2DWidget />}

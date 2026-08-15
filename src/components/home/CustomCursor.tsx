@@ -18,7 +18,7 @@ export function CustomCursor() {
       if (dotRef.current) {
         dotRef.current.style.transform = `translate(${mx}px, ${my}px)`
       }
-      if (hidden) setHidden(false)
+      setHidden(false)
     }
 
     const onDown = () => ringRef.current?.classList.add('cursor-ring-active')
@@ -50,7 +50,7 @@ export function CustomCursor() {
       document.removeEventListener('mouseenter', onEnter)
       cancelAnimationFrame(raf)
     }
-  }, [hidden])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return null
 

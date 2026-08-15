@@ -1,9 +1,9 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, isValidElement, type ReactNode } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import { ArrowLeft, Calendar, Clock, Eye } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, Eye, Loader2 } from 'lucide-react'
 import { ARTICLES, loadArticleBySlug } from '@/data/articles'
 import { GlassCard } from '@/components/molecules/GlassCard'
 import { ArticleTOC } from '@/components/molecules/ArticleTOC'
@@ -13,6 +13,23 @@ import { CodeBlock } from '@/components/home/CodeBlockEnhance'
 import { LikeHeartAnimation } from '@/components/home/LikeHeartAnimation'
 import { formatDate, formatNumber } from '@/utils/format'
 import { bumpArticleViews, getLocalViews } from '@/utils/articleMetrics'
+
+/** 从 React 子节点中递归提取纯文本（用于标题 ID 生成） */
+function extractText(node: ReactNode): string {
+  if (typeof node === 'string') return node
+  if (typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractText).join('')
+  if (isValidElement(node)) return extractText(node.props.children)
+  return ''
+}
+
+/** 生成标题 slug */
+function slugify(children: ReactNode): string {
+  return extractText(children)
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 /**
  * ArticleDetail 文章详情页
@@ -26,15 +43,22 @@ export default function ArticleDetail() {
   const { id } = useParams<{ id: string }>()
 
   const [article, setArticle] = useState(() => ARTICLES.find((a) => a.id === id))
+  const [loading, setLoading] = useState(() => !ARTICLES.find((a) => a.id === id))
 
   // 异步加载合并后的文章（后台发布的 + 静态内置），静态数据作为初始值兜底
   useEffect(() => {
     const fallback = ARTICLES.find((a) => a.id === id)
     setArticle(fallback)
-    if (!id) return
+    if (!id) { setLoading(false); return }
+    setLoading(!fallback)
     let alive = true
     loadArticleBySlug(id).then((a) => {
-      if (alive) setArticle(a ?? fallback)
+      if (alive) {
+        setArticle(a ?? fallback)
+        setLoading(false)
+      }
+    }).catch(() => {
+      if (alive) setLoading(false)
     })
     return () => { alive = false }
   }, [id])
@@ -61,6 +85,16 @@ export default function ArticleDetail() {
       return { level, text, slug }
     })
   }, [article])
+
+  // 加载中
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <p className="mt-4 text-sm text-[rgb(var(--text-secondary))]">加载中...</p>
+      </div>
+    )
+  }
 
   // 404
   if (!article) {
@@ -132,18 +166,15 @@ export default function ArticleDetail() {
                 components={{
                   // 自定义渲染：为标题添加 id 以支持目录跳转
                   h1: ({ children, ...props }) => {
-                    const text = typeof children === 'string' ? children : ''
-                    const slug = text.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '')
+                    const slug = slugify(children)
                     return <h1 id={slug} {...props}>{children}</h1>
                   },
                   h2: ({ children, ...props }) => {
-                    const text = typeof children === 'string' ? children : ''
-                    const slug = text.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '')
+                    const slug = slugify(children)
                     return <h2 id={slug} {...props}>{children}</h2>
                   },
                   h3: ({ children, ...props }) => {
-                    const text = typeof children === 'string' ? children : ''
-                    const slug = text.toLowerCase().replace(/[^\w\u4e00-\u9fa5]+/g, '-').replace(/^-|-$/g, '')
+                    const slug = slugify(children)
                     return <h3 id={slug} {...props}>{children}</h3>
                   },
                   pre: ({ children }) => {

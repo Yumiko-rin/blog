@@ -39,7 +39,7 @@ function groupByDate(list: Shuoshuo[]): [string, Shuoshuo[]][] {
   return Array.from(map.entries())
 }
 
-function ShuoshuoItem({ item }: { item: Shuoshuo }) {
+function ShuoshuoItem({ item, isLast }: { item: Shuoshuo; isLast?: boolean }) {
   const [open, setOpen] = useState(false)
   const [liked, setLiked] = useState(() => getLikedSet().has(item.id))
   const [likeCount, setLikeCount] = useState(() => getLikeCounts()[item.id] || 0)
@@ -67,7 +67,7 @@ function ShuoshuoItem({ item }: { item: Shuoshuo }) {
       {/* 时间轴圆点 */}
       <span className="absolute left-[6px] top-1.5 w-2.5 h-2.5 rounded-full bg-accent ring-4 ring-accent/15" />
       {/* 连接线 */}
-      <span className="absolute left-[11px] top-4 bottom-0 w-px bg-black/10 dark:bg-white/10 last:hidden" />
+      {!isLast && <span className="absolute left-[11px] top-4 bottom-0 w-px bg-black/10 dark:bg-white/10" />}
 
       <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white/60 dark:bg-slate-800/40 p-4 hover:border-accent/40 transition-colors">
         <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -80,7 +80,7 @@ function ShuoshuoItem({ item }: { item: Shuoshuo }) {
         {item.images && item.images.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {item.images.map((src, i) => (
-              <img key={i} src={src} alt="" className="w-full h-24 object-cover rounded-xl" />
+              <img key={i} src={src} alt="" className="w-full h-24 object-cover rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none' }} />
             ))}
           </div>
         )}
@@ -148,8 +148,8 @@ export default function Shuoshuo() {
                 </span>
               </div>
               <div className="relative">
-                {items.map((item) => (
-                  <ShuoshuoItem key={item.id} item={item} />
+                {items.map((item, idx) => (
+                  <ShuoshuoItem key={item.id} item={item} isLast={idx === items.length - 1} />
                 ))}
               </div>
             </section>

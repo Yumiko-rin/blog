@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, X, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
 import { playClickSound } from '@/utils/sounds'
@@ -463,8 +463,9 @@ export default function Gallery() {
     setLightboxOpen(true)
   }
 
-  const sortedAlbums = [...ALBUMS].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  const sortedAlbums = useMemo(
+    () => [...ALBUMS].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    []
   )
 
   return (

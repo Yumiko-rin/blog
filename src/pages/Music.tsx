@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type MouseEvent, type ReactElement } from 'react'
-import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, FileText, ListMusic } from 'lucide-react'
+import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, FileText, ListMusic, AlertCircle } from 'lucide-react'
 import { useMusicStore } from '@/store/useMusicStore'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { PlaylistPanel } from '@/components/music/PlaylistPanel'
@@ -27,6 +27,7 @@ const MODE_LABEL: Record<PlayMode, string> = {
 export default function Music() {
   const [activeTab, setActiveTab] = useState<TabType>('lyrics')
   const [isMuted, setIsMuted] = useState(false)
+  const prevVolumeRef = useRef(0.7)
 
   const currentSong = useMusicStore((s) => s.currentSong)
   const isPlaying = useMusicStore((s) => s.isPlaying)
@@ -34,6 +35,7 @@ export default function Music() {
   const playMode = useMusicStore((s) => s.playMode)
   const currentTime = useMusicStore((s) => s.currentTime)
   const duration = useMusicStore((s) => s.duration)
+  const audioError = useMusicStore((s) => s.audioError)
   const togglePlay = useMusicStore((s) => s.togglePlay)
   const cyclePlayMode = useMusicStore((s) => s.cyclePlayMode)
   const setVolume = useMusicStore((s) => s.setVolume)
@@ -80,8 +82,14 @@ export default function Music() {
   }
 
   const toggleMute = () => {
-    setIsMuted(!isMuted)
-    setVolume(isMuted ? 0.7 : 0)
+    if (isMuted) {
+      setVolume(prevVolumeRef.current)
+      setIsMuted(false)
+    } else {
+      prevVolumeRef.current = volume || 0.7
+      setVolume(0)
+      setIsMuted(true)
+    }
   }
 
   if (!playlists.length) {
@@ -229,6 +237,21 @@ export default function Music() {
             </div>
           </div>
         </div>
+
+        {/* 音频错误提示 */}
+        {audioError && (
+          <div className="flex items-center gap-2 mt-3 mb-1 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-2.5">
+            <AlertCircle size={16} className="shrink-0 text-red-400" />
+            <span className="flex-1 text-xs text-red-300 font-medium">{audioError}</span>
+            <button
+              type="button"
+              onClick={() => { playClickSound(); handleNext() }}
+              className="shrink-0 rounded-lg bg-red-500/20 px-3 py-1 text-xs font-medium text-red-200 transition-colors hover:bg-red-500/30"
+            >
+              跳过
+            </button>
+          </div>
+        )}
 
         {/* 标签切换 */}
         <div className="flex gap-1 mb-3 md:mb-4 mt-4 rounded-xl md:rounded-2xl bg-white/30 dark:bg-slate-800/40 backdrop-blur-md border border-white/30 dark:border-white/10 p-1">

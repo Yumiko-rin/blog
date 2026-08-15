@@ -48,6 +48,12 @@ export default function Home() {
 
   // 分页
   const totalPages = Math.max(1, Math.ceil(articles.length / PAGE_SIZE))
+
+  // 异步加载后文章数减少时，自动修正当前页码避免越界空白
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [totalPages, page])
+
   const pageArticles = useMemo(
     () => articles.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
     [articles, page]
