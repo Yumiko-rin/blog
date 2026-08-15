@@ -30,10 +30,10 @@ function getPhotoUrl(photo: Photo): string {
     const idx = album.photos.findIndex(p => p.id === photo.id)
     if (idx !== -1) {
       const imageNum = (idx % IMAGES_PER_ALBUM) + 1
-      return `/img/gallery/album${album.id}_${imageNum}.jpg?v=2`
+      return `/img/gallery/album${album.id}_${imageNum}.jpg?v=3`
     }
   }
-  return '/img/gallery/album2_1.jpg?v=2'
+  return '/img/gallery/album2_1.jpg?v=3'
 }
 
 // ========== 所有照片数据（来自 boke.hiromu.top）==========
@@ -506,12 +506,18 @@ export default function Gallery() {
         className="mb-6 md:mb-12"
       >
         <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
-          <button type="button" onClick={() => navigate(-1)}
+          <button type="button" onClick={() => {
+            if (expandedId !== null) {
+              setExpandedId(null)
+            } else {
+              navigate(-1)
+            }
+          }}
             className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
               bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]
               hover:bg-accent/10 hover:text-accent transition-all mr-2 md:mr-3"
-            aria-label="返回上一页">
-            <ArrowLeft size={14} /> 返回
+            aria-label={expandedId !== null ? '收起相册' : '返回上一页'}>
+            <ArrowLeft size={14} /> {expandedId !== null ? '收起' : '返回'}
           </button>
           <Camera className="w-5 h-5 md:w-7 md:h-7 text-sky-500" />
           <h1 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">照片墙</h1>
