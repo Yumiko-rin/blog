@@ -6,6 +6,14 @@
 
 let audioCtx: AudioContext | null = null
 
+function isSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem('sound-enabled') !== 'false'
+  } catch {
+    return true
+  }
+}
+
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext()
@@ -15,6 +23,7 @@ function getAudioContext(): AudioContext {
 
 /** 播放点击音效（清脆的叮咚声） */
 export function playClickSound() {
+  if (!isSoundEnabled()) return
   try {
     const ctx = getAudioContext()
     const osc = ctx.createOscillator()
@@ -40,6 +49,7 @@ export function playClickSound() {
 
 /** 播放悬停音效（轻柔的气泡声） */
 export function playHoverSound() {
+  if (!isSoundEnabled()) return
   try {
     const ctx = getAudioContext()
     const osc = ctx.createOscillator()
@@ -64,6 +74,7 @@ export function playHoverSound() {
 
 /** 播放展开音效（上升音） */
 export function playExpandSound() {
+  if (!isSoundEnabled()) return
   try {
     const ctx = getAudioContext()
     const osc = ctx.createOscillator()
@@ -88,6 +99,7 @@ export function playExpandSound() {
 
 /** 播放切换音效（双音） */
 export function playToggleSound() {
+  if (!isSoundEnabled()) return
   try {
     const ctx = getAudioContext()
 

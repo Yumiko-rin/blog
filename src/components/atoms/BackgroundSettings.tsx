@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Settings, ChevronLeft, ChevronRight, Sparkles, Shuffle } from 'lucide-react'
+import { Settings, ChevronLeft, ChevronRight, Sparkles, Shuffle, X } from 'lucide-react'
 import { IconButton } from '@/components/atoms/IconButton'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { BG_IMAGES } from '@/data/backgrounds'
@@ -99,8 +99,6 @@ export function BackgroundSettings() {
   const [settings, setSettings] = useLocalStorage<Settings>('bg-settings', DEFAULT_SETTINGS)
   const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  // 仅用户主动切换背景时才向 DynamicBackground 派发 bg-change，避免自动轮播回写造成循环
-  const userPicked = useRef(false)
 
   const autoRotateOn = settings.autoRotate ?? true
 
@@ -117,15 +115,10 @@ export function BackgroundSettings() {
     return () => document.removeEventListener('mousedown', handler)
   }, [isOpen])
 
-  // 应用模糊度 + 派发手动背景切换
+  // 应用模糊度
   useEffect(() => {
-    const root = document.documentElement
-    root.style.setProperty('--bg-blur', `${settings.blur}px`)
-    if (userPicked.current) {
-      window.dispatchEvent(new CustomEvent('bg-change', { detail: { index: settings.bgIndex } }))
-      userPicked.current = false
-    }
-  }, [settings.bgIndex, settings.blur])
+    document.documentElement.style.setProperty('--bg-blur', `${settings.blur}px`)
+  }, [settings.blur])
 
   // 自动轮播开关 -> 通知 DynamicBackground
   useEffect(() => {
@@ -168,8 +161,9 @@ export function BackgroundSettings() {
   }, [settings.mouseEffect])
 
   const pick = useCallback((index: number) => {
-    userPicked.current = true
-    setSettings((s) => ({ ...s, bgIndex: ((index % BG_IMAGES.length) + BG_IMAGES.length) % BG_IMAGES.length }))
+    const newIndex = ((index % BG_IMAGES.length) + BG_IMAGES.length) % BG_IMAGES.length
+    setSettings((s) => ({ ...s, bgIndex: newIndex }))
+    window.dispatchEvent(new CustomEvent('bg-change', { detail: { index: newIndex } }))
   }, [setSettings])
 
   const prevBg = useCallback(() => pick(settings.bgIndex - 1), [pick, settings.bgIndex])
@@ -189,7 +183,7 @@ export function BackgroundSettings() {
   const current = BG_IMAGES[settings.bgIndex] ?? BG_IMAGES[0]
 
   return (
-    <>
+    <div className="relative">
       <IconButton
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
@@ -207,9 +201,15 @@ export function BackgroundSettings() {
             p-4 z-50 animate-fade-in max-h-[80vh] overflow-y-auto scrollbar-hide"
         >
           {/* 标题 */}
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={16} className="text-accent" />
-            <span className="text-sm font-bold text-[rgb(var(--text-primary))]">设置</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} className="text-accent" />
+              <span className="text-sm font-bold text-[rgb(var(--text-primary))]">设置</span>
+            </div>
+            <button type="button" onClick={() => setIsOpen(false)}
+              className="p-1 rounded-lg hover:bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))] transition-colors">
+              <X size={14} />
+            </button>
           </div>
 
           {/* ===== 背景图片 ===== */}
@@ -267,7 +267,7 @@ export function BackgroundSettings() {
             <button type="button" role="switch" aria-checked={autoRotateOn}
               onClick={() => setSettings((s) => ({ ...s, autoRotate: !autoRotateOn }))}
               className={`relative h-5 w-9 rounded-full transition-colors ${autoRotateOn ? 'bg-accent' : 'bg-[rgb(var(--bg-secondary))]'}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${autoRotateOn ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              <span className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${autoRotateOn ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
             </button>
           </div>
 
@@ -304,7 +304,7 @@ export function BackgroundSettings() {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 

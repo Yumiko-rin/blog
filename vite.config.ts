@@ -75,6 +75,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/music/, ''),
       },
+      // 画廊图片代理：static.hiromu.top/Boke/* → /img/*
+      '/img': {
+        target: 'https://static.hiromu.top/Boke',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (p) => p.replace(/^\/img/, ''),
+      },
     },
   },
   preview: {

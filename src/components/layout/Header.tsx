@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { ThemeToggle } from '@/components/atoms/ThemeToggle'
+import { BackgroundSettings } from '@/components/atoms/BackgroundSettings'
+import { GeneralSettings } from '@/components/atoms/GeneralSettings'
 import { IconButton } from '@/components/atoms/IconButton'
 import { playClickSound } from '@/utils/sounds'
 
@@ -81,6 +83,8 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2 relative">
+            <BackgroundSettings />
+            <GeneralSettings />
             <ThemeToggle />
           </div>
         </div>

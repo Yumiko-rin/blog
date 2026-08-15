@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Camera, X, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
 import { playClickSound } from '@/utils/sounds'
 
 interface Photo {
@@ -24,25 +24,25 @@ const ALBUMS: Album[] = [
     title: '风景写真',
     updatedAt: '2026-05-26',
     photos: [
-      { id: 'p1', url: 'https://static.hiromu.top/Boke/2e45f3f255f14d06979148160bac1b7c.webp', caption: '风景1', orientation: 'portrait' },
-      { id: 'p2', url: 'https://static.hiromu.top/Boke/c6d1c99db3644706bc86f9ae97c8bc00.webp', caption: '风景2', orientation: 'portrait' },
-      { id: 'p3', url: 'https://static.hiromu.top/Boke/a319cea329a84d589aa01866fe6dcd89.webp', caption: '风景3', orientation: 'portrait' },
-      { id: 'p4', url: 'https://static.hiromu.top/Boke/51830eac34b949ca87c2163bbfdafd0f.webp', caption: '风景4', orientation: 'portrait' },
-      { id: 'p5', url: 'https://static.hiromu.top/Boke/5ce3c84d1924445d8756ed0cbe88f180.webp', caption: '风景5', orientation: 'portrait' },
-      { id: 'p6', url: 'https://static.hiromu.top/Boke/deec38eaa6114d0b9733072329aa446f.webp', caption: '风景6', orientation: 'portrait' },
-      { id: 'p7', url: 'https://static.hiromu.top/Boke/cd0913c692ec4b7aa147b2dc29e99b93.webp', caption: '风景7', orientation: 'portrait' },
-      { id: 'p8', url: 'https://static.hiromu.top/Boke/9d5a8683d2984f9bb3edc1b6f2227e1d.webp', caption: '风景8', orientation: 'portrait' },
-      { id: 'p9', url: 'https://static.hiromu.top/Boke/e5e7f934f96546328ba9a91124c26eb1.webp', caption: '风景9', orientation: 'portrait' },
-      { id: 'p10', url: 'https://static.hiromu.top/Boke/02e96e7700e543ccbbc5774f7bf272d3.webp', caption: '风景10', orientation: 'portrait' },
-      { id: 'p11', url: 'https://static.hiromu.top/Boke/a60c801076c241a690e6831581ca7d15.webp', caption: '风景11', orientation: 'portrait' },
-      { id: 'p12', url: 'https://static.hiromu.top/Boke/7e4afcbc5ff849b0951a15a8136c3901.webp', caption: '风景12', orientation: 'portrait' },
-      { id: 'p13', url: 'https://static.hiromu.top/Boke/57c66bb62e9f4ebfbe6a6cd5351e852e.webp', caption: '风景13', orientation: 'portrait' },
-      { id: 'p14', url: 'https://static.hiromu.top/Boke/beac62cd602347cc8ca100aa95d488c5.jpg', caption: '风景14', orientation: 'portrait' },
-      { id: 'p15', url: 'https://static.hiromu.top/Boke/33f636cbdc2b45c0a6db0bdb58f9d6b8.jpg', caption: '风景15', orientation: 'portrait' },
-      { id: 'p16', url: 'https://static.hiromu.top/Boke/79df9e0b583f499f90195fca9ceba795.jpg', caption: '风景16', orientation: 'portrait' },
-      { id: 'p17', url: 'https://static.hiromu.top/Boke/a0765227c9874588b9ec09b67516fa3f.jpg', caption: '风景17', orientation: 'portrait' },
-      { id: 'p18', url: 'https://static.hiromu.top/Boke/9c91cba5b06548d4a66ac28ef4f4d98c.webp', caption: '风景18', orientation: 'portrait' },
-      { id: 'p19', url: 'https://static.hiromu.top/Boke/79e0e03bd5394d39887db1a0128f4dbc.webp', caption: '风景19', orientation: 'portrait' },
+      { id: 'p1', url: '/img/2e45f3f255f14d06979148160bac1b7c.webp', caption: '风景1', orientation: 'portrait' },
+      { id: 'p2', url: '/img/c6d1c99db3644706bc86f9ae97c8bc00.webp', caption: '风景2', orientation: 'portrait' },
+      { id: 'p3', url: '/img/a319cea329a84d589aa01866fe6dcd89.webp', caption: '风景3', orientation: 'portrait' },
+      { id: 'p4', url: '/img/51830eac34b949ca87c2163bbfdafd0f.webp', caption: '风景4', orientation: 'portrait' },
+      { id: 'p5', url: '/img/5ce3c84d1924445d8756ed0cbe88f180.webp', caption: '风景5', orientation: 'portrait' },
+      { id: 'p6', url: '/img/deec38eaa6114d0b9733072329aa446f.webp', caption: '风景6', orientation: 'portrait' },
+      { id: 'p7', url: '/img/cd0913c692ec4b7aa147b2dc29e99b93.webp', caption: '风景7', orientation: 'portrait' },
+      { id: 'p8', url: '/img/9d5a8683d2984f9bb3edc1b6f2227e1d.webp', caption: '风景8', orientation: 'portrait' },
+      { id: 'p9', url: '/img/e5e7f934f96546328ba9a91124c26eb1.webp', caption: '风景9', orientation: 'portrait' },
+      { id: 'p10', url: '/img/02e96e7700e543ccbbc5774f7bf272d3.webp', caption: '风景10', orientation: 'portrait' },
+      { id: 'p11', url: '/img/a60c801076c241a690e6831581ca7d15.webp', caption: '风景11', orientation: 'portrait' },
+      { id: 'p12', url: '/img/7e4afcbc5ff849b0951a15a8136c3901.webp', caption: '风景12', orientation: 'portrait' },
+      { id: 'p13', url: '/img/57c66bb62e9f4ebfbe6a6cd5351e852e.webp', caption: '风景13', orientation: 'portrait' },
+      { id: 'p14', url: '/img/beac62cd602347cc8ca100aa95d488c5.jpg', caption: '风景14', orientation: 'portrait' },
+      { id: 'p15', url: '/img/33f636cbdc2b45c0a6db0bdb58f9d6b8.jpg', caption: '风景15', orientation: 'portrait' },
+      { id: 'p16', url: '/img/79df9e0b583f499f90195fca9ceba795.jpg', caption: '风景16', orientation: 'portrait' },
+      { id: 'p17', url: '/img/a0765227c9874588b9ec09b67516fa3f.jpg', caption: '风景17', orientation: 'portrait' },
+      { id: 'p18', url: '/img/9c91cba5b06548d4a66ac28ef4f4d98c.webp', caption: '风景18', orientation: 'portrait' },
+      { id: 'p19', url: '/img/79e0e03bd5394d39887db1a0128f4dbc.webp', caption: '风景19', orientation: 'portrait' },
     ],
   },
   {
@@ -50,26 +50,26 @@ const ALBUMS: Album[] = [
     title: '日常记录',
     updatedAt: '2026-05-08',
     photos: [
-      { id: 'p20', url: 'https://static.hiromu.top/Boke/814f4b66bd7045e296754ca46ca22342.webp', caption: '日常1', orientation: 'landscape' },
-      { id: 'p21', url: 'https://static.hiromu.top/Boke/c0b7e306748f4a0ab7da6ae3eb9b34cc.webp', caption: '日常2', orientation: 'landscape' },
-      { id: 'p22', url: 'https://static.hiromu.top/Boke/c317869ba5e64b4988c38fcb119720c8.webp', caption: '日常3', orientation: 'landscape' },
-      { id: 'p23', url: 'https://static.hiromu.top/Boke/3c1b448e88d14f11973cbc596e4da2c6.webp', caption: '日常4', orientation: 'landscape' },
-      { id: 'p24', url: 'https://static.hiromu.top/Boke/f3846e90afac4a7e89fc10fa933b34db.webp', caption: '日常5', orientation: 'landscape' },
-      { id: 'p25', url: 'https://static.hiromu.top/Boke/98dcb290db664a3782c4c7e1ab714ad0.webp', caption: '日常6', orientation: 'landscape' },
-      { id: 'p26', url: 'https://static.hiromu.top/Boke/20a1beaf680e4265bc0637bd71d01837.webp', caption: '日常7', orientation: 'landscape' },
-      { id: 'p27', url: 'https://static.hiromu.top/Boke/bf98690f44164c0ba47930df237e3049.webp', caption: '日常8', orientation: 'landscape' },
-      { id: 'p28', url: 'https://static.hiromu.top/Boke/a7ad38d3e180404ebb6b309ff65ec00e.webp', caption: '日常9', orientation: 'landscape' },
-      { id: 'p29', url: 'https://static.hiromu.top/Boke/faaf2c294ee94b8c9233e8fe861060d2.webp', caption: '日常10', orientation: 'landscape' },
-      { id: 'p30', url: 'https://static.hiromu.top/Boke/d2b8300dc8dd42b9ae58b426f1311b27.webp', caption: '日常11', orientation: 'landscape' },
-      { id: 'p31', url: 'https://static.hiromu.top/Boke/903b1044b9564c5cb27be20a1e65a844.webp', caption: '日常12', orientation: 'landscape' },
-      { id: 'p32', url: 'https://static.hiromu.top/Boke/c94159cd03d7420b890e75e3de7de56a.webp', caption: '日常13', orientation: 'landscape' },
-      { id: 'p33', url: 'https://static.hiromu.top/Boke/95a84ca02a04459aa7a273844ec6fd3e.webp', caption: '日常14', orientation: 'landscape' },
-      { id: 'p34', url: 'https://static.hiromu.top/Boke/b82468228ec545f09032687b1fb2697d.webp', caption: '日常15', orientation: 'landscape' },
-      { id: 'p35', url: 'https://static.hiromu.top/Boke/8935e36de0cd4c2c8438174f7cfe7e48.jpg', caption: '日常16', orientation: 'landscape' },
-      { id: 'p36', url: 'https://static.hiromu.top/Boke/98030b561d90468cbeccec1293785ba2.png', caption: '日常17', orientation: 'landscape' },
-      { id: 'p37', url: 'https://static.hiromu.top/Boke/ecd1f1e72dbf41d285b2d3723fd3efc0.jpg', caption: '日常18', orientation: 'landscape' },
-      { id: 'p38', url: 'https://static.hiromu.top/Boke/b58b763430b74ff39654732fdda8899c.jpg', caption: '日常19', orientation: 'landscape' },
-      { id: 'p39', url: 'https://static.hiromu.top/Boke/1cd852b06e1944079ce3c716476fd26d.jpg', caption: '日常20', orientation: 'landscape' },
+      { id: 'p20', url: '/img/814f4b66bd7045e296754ca46ca22342.webp', caption: '日常1', orientation: 'landscape' },
+      { id: 'p21', url: '/img/c0b7e306748f4a0ab7da6ae3eb9b34cc.webp', caption: '日常2', orientation: 'landscape' },
+      { id: 'p22', url: '/img/c317869ba5e64b4988c38fcb119720c8.webp', caption: '日常3', orientation: 'landscape' },
+      { id: 'p23', url: '/img/3c1b448e88d14f11973cbc596e4da2c6.webp', caption: '日常4', orientation: 'landscape' },
+      { id: 'p24', url: '/img/f3846e90afac4a7e89fc10fa933b34db.webp', caption: '日常5', orientation: 'landscape' },
+      { id: 'p25', url: '/img/98dcb290db664a3782c4c7e1ab714ad0.webp', caption: '日常6', orientation: 'landscape' },
+      { id: 'p26', url: '/img/20a1beaf680e4265bc0637bd71d01837.webp', caption: '日常7', orientation: 'landscape' },
+      { id: 'p27', url: '/img/bf98690f44164c0ba47930df237e3049.webp', caption: '日常8', orientation: 'landscape' },
+      { id: 'p28', url: '/img/a7ad38d3e180404ebb6b309ff65ec00e.webp', caption: '日常9', orientation: 'landscape' },
+      { id: 'p29', url: '/img/faaf2c294ee94b8c9233e8fe861060d2.webp', caption: '日常10', orientation: 'landscape' },
+      { id: 'p30', url: '/img/d2b8300dc8dd42b9ae58b426f1311b27.webp', caption: '日常11', orientation: 'landscape' },
+      { id: 'p31', url: '/img/903b1044b9564c5cb27be20a1e65a844.webp', caption: '日常12', orientation: 'landscape' },
+      { id: 'p32', url: '/img/c94159cd03d7420b890e75e3de7de56a.webp', caption: '日常13', orientation: 'landscape' },
+      { id: 'p33', url: '/img/95a84ca02a04459aa7a273844ec6fd3e.webp', caption: '日常14', orientation: 'landscape' },
+      { id: 'p34', url: '/img/b82468228ec545f09032687b1fb2697d.webp', caption: '日常15', orientation: 'landscape' },
+      { id: 'p35', url: '/img/8935e36de0cd4c2c8438174f7cfe7e48.jpg', caption: '日常16', orientation: 'landscape' },
+      { id: 'p36', url: '/img/98030b561d90468cbeccec1293785ba2.png', caption: '日常17', orientation: 'landscape' },
+      { id: 'p37', url: '/img/ecd1f1e72dbf41d285b2d3723fd3efc0.jpg', caption: '日常18', orientation: 'landscape' },
+      { id: 'p38', url: '/img/b58b763430b74ff39654732fdda8899c.jpg', caption: '日常19', orientation: 'landscape' },
+      { id: 'p39', url: '/img/1cd852b06e1944079ce3c716476fd26d.jpg', caption: '日常20', orientation: 'landscape' },
     ],
   },
   {
@@ -77,38 +77,38 @@ const ALBUMS: Album[] = [
     title: '旅行足迹',
     updatedAt: '2026-05-10',
     photos: [
-      { id: 'p40', url: 'https://static.hiromu.top/Boke/d94ba7b63fc24cbb8f01c9129054735c.jpg', caption: '旅行1', orientation: 'landscape' },
-      { id: 'p41', url: 'https://static.hiromu.top/Boke/d40a93b7b96c4547bb879c63fdcf52ee.jpg', caption: '旅行2', orientation: 'landscape' },
-      { id: 'p42', url: 'https://static.hiromu.top/Boke/dfbccc631c944c37becc64db0480e03f.webp', caption: '旅行3', orientation: 'landscape' },
-      { id: 'p43', url: 'https://static.hiromu.top/Boke/4b476a96911b47a1b869f97a1b6c87a5.webp', caption: '旅行4', orientation: 'landscape' },
-      { id: 'p44', url: 'https://static.hiromu.top/Boke/d7ec34624c4b4304bea4e35c1fd1ca14.webp', caption: '旅行5', orientation: 'landscape' },
-      { id: 'p45', url: 'https://static.hiromu.top/Boke/2c8f13ee219d471fabe6f06210879453.jpg', caption: '旅行6', orientation: 'landscape' },
-      { id: 'p46', url: 'https://static.hiromu.top/Boke/0d7be4f4a06841f3b054f1b8bbba0085.jpg', caption: '旅行7', orientation: 'landscape' },
-      { id: 'p47', url: 'https://static.hiromu.top/Boke/7bb4d72918e04f6f9cd11ea083b6f950.webp', caption: '旅行8', orientation: 'landscape' },
-      { id: 'p48', url: 'https://static.hiromu.top/Boke/de82114ff2884e389a6756250b678ef1.webp', caption: '旅行9', orientation: 'landscape' },
-      { id: 'p49', url: 'https://static.hiromu.top/Boke/3e0a8128796d45bcad0dec76070cbc24.webp', caption: '旅行10', orientation: 'landscape' },
-      { id: 'p50', url: 'https://static.hiromu.top/Boke/219200fe2af74adbbcb476ebc2762365.webp', caption: '旅行11', orientation: 'landscape' },
-      { id: 'p51', url: 'https://static.hiromu.top/Boke/c1c1a29e38b749329bd139944e925042.jpg', caption: '旅行12', orientation: 'landscape' },
-      { id: 'p52', url: 'https://static.hiromu.top/Boke/6389bf7394324b6e90eab8bfd14faf8a.webp', caption: '旅行13', orientation: 'landscape' },
-      { id: 'p53', url: 'https://static.hiromu.top/Boke/3d0e181f9626442a9c5a2bb0b418d09c.webp', caption: '旅行14', orientation: 'landscape' },
-      { id: 'p54', url: 'https://static.hiromu.top/Boke/a1cb61affc804101b19b82ec810c455d.webp', caption: '旅行15', orientation: 'landscape' },
-      { id: 'p55', url: 'https://static.hiromu.top/Boke/0b6fed56b1814015b869d999dbee0f87.jpg', caption: '旅行16', orientation: 'landscape' },
-      { id: 'p56', url: 'https://static.hiromu.top/Boke/635cdea8a6104e2a8c3bba412a626e55.jpg', caption: '旅行17', orientation: 'landscape' },
-      { id: 'p57', url: 'https://static.hiromu.top/Boke/9251820c350e4f4d8a2b79229c3cfe03.webp', caption: '旅行18', orientation: 'landscape' },
-      { id: 'p58', url: 'https://static.hiromu.top/Boke/b9ce1b6954094d48851ec6e3fa0c1eaa.jpg', caption: '旅行19', orientation: 'landscape' },
-      { id: 'p59', url: 'https://static.hiromu.top/Boke/6773b4b03e5e49c099823d915bdc64b7.webp', caption: '旅行20', orientation: 'landscape' },
-      { id: 'p60', url: 'https://static.hiromu.top/Boke/a8991f49c1ab4a8b9c3e00d63bcb9849.webp', caption: '旅行21', orientation: 'landscape' },
-      { id: 'p61', url: 'https://static.hiromu.top/Boke/b9d888f6652c48539768ebeb55498d76.webp', caption: '旅行22', orientation: 'landscape' },
-      { id: 'p62', url: 'https://static.hiromu.top/Boke/c7e9af339b4b4b5fa7785eb08613ae2a.webp', caption: '旅行23', orientation: 'landscape' },
-      { id: 'p63', url: 'https://static.hiromu.top/Boke/22fa812169bd45ebb2e04c152b31a6e0.webp', caption: '旅行24', orientation: 'landscape' },
-      { id: 'p64', url: 'https://static.hiromu.top/Boke/df3ccd1d473a4b8aa546f532e14501b5.jpg', caption: '旅行25', orientation: 'landscape' },
-      { id: 'p65', url: 'https://static.hiromu.top/Boke/3178a904eba744d1a900b667064ed0a1.webp', caption: '旅行26', orientation: 'landscape' },
-      { id: 'p66', url: 'https://static.hiromu.top/Boke/abf30216b0f14d928d8336969d69d42a.jpg', caption: '旅行27', orientation: 'landscape' },
-      { id: 'p67', url: 'https://static.hiromu.top/Boke/088df570c8db4d6398b16b8ca3ef8920.webp', caption: '旅行28', orientation: 'landscape' },
-      { id: 'p68', url: 'https://static.hiromu.top/Boke/e73f4cfd5ced49bd8340cde1aaf33985.webp', caption: '旅行29', orientation: 'landscape' },
-      { id: 'p69', url: 'https://static.hiromu.top/Boke/c9f36719cafe41bfb422351755157798.jpg', caption: '旅行30', orientation: 'landscape' },
-      { id: 'p70', url: 'https://static.hiromu.top/Boke/a1b556561aaa4136bb4de3ddaad400de.webp', caption: '旅行31', orientation: 'landscape' },
-      { id: 'p71', url: 'https://static.hiromu.top/Boke/8696f8333595489f9e027054f324fff7.jpg', caption: '旅行32', orientation: 'landscape' },
+      { id: 'p40', url: '/img/d94ba7b63fc24cbb8f01c9129054735c.jpg', caption: '旅行1', orientation: 'landscape' },
+      { id: 'p41', url: '/img/d40a93b7b96c4547bb879c63fdcf52ee.jpg', caption: '旅行2', orientation: 'landscape' },
+      { id: 'p42', url: '/img/dfbccc631c944c37becc64db0480e03f.webp', caption: '旅行3', orientation: 'landscape' },
+      { id: 'p43', url: '/img/4b476a96911b47a1b869f97a1b6c87a5.webp', caption: '旅行4', orientation: 'landscape' },
+      { id: 'p44', url: '/img/d7ec34624c4b4304bea4e35c1fd1ca14.webp', caption: '旅行5', orientation: 'landscape' },
+      { id: 'p45', url: '/img/2c8f13ee219d471fabe6f06210879453.jpg', caption: '旅行6', orientation: 'landscape' },
+      { id: 'p46', url: '/img/0d7be4f4a06841f3b054f1b8bbba0085.jpg', caption: '旅行7', orientation: 'landscape' },
+      { id: 'p47', url: '/img/7bb4d72918e04f6f9cd11ea083b6f950.webp', caption: '旅行8', orientation: 'landscape' },
+      { id: 'p48', url: '/img/de82114ff2884e389a6756250b678ef1.webp', caption: '旅行9', orientation: 'landscape' },
+      { id: 'p49', url: '/img/3e0a8128796d45bcad0dec76070cbc24.webp', caption: '旅行10', orientation: 'landscape' },
+      { id: 'p50', url: '/img/219200fe2af74adbbcb476ebc2762365.webp', caption: '旅行11', orientation: 'landscape' },
+      { id: 'p51', url: '/img/c1c1a29e38b749329bd139944e925042.jpg', caption: '旅行12', orientation: 'landscape' },
+      { id: 'p52', url: '/img/6389bf7394324b6e90eab8bfd14faf8a.webp', caption: '旅行13', orientation: 'landscape' },
+      { id: 'p53', url: '/img/3d0e181f9626442a9c5a2bb0b418d09c.webp', caption: '旅行14', orientation: 'landscape' },
+      { id: 'p54', url: '/img/a1cb61affc804101b19b82ec810c455d.webp', caption: '旅行15', orientation: 'landscape' },
+      { id: 'p55', url: '/img/0b6fed56b1814015b869d999dbee0f87.jpg', caption: '旅行16', orientation: 'landscape' },
+      { id: 'p56', url: '/img/635cdea8a6104e2a8c3bba412a626e55.jpg', caption: '旅行17', orientation: 'landscape' },
+      { id: 'p57', url: '/img/9251820c350e4f4d8a2b79229c3cfe03.webp', caption: '旅行18', orientation: 'landscape' },
+      { id: 'p58', url: '/img/b9ce1b6954094d48851ec6e3fa0c1eaa.jpg', caption: '旅行19', orientation: 'landscape' },
+      { id: 'p59', url: '/img/6773b4b03e5e49c099823d915bdc64b7.webp', caption: '旅行20', orientation: 'landscape' },
+      { id: 'p60', url: '/img/a8991f49c1ab4a8b9c3e00d63bcb9849.webp', caption: '旅行21', orientation: 'landscape' },
+      { id: 'p61', url: '/img/b9d888f6652c48539768ebeb55498d76.webp', caption: '旅行22', orientation: 'landscape' },
+      { id: 'p62', url: '/img/c7e9af339b4b4b5fa7785eb08613ae2a.webp', caption: '旅行23', orientation: 'landscape' },
+      { id: 'p63', url: '/img/22fa812169bd45ebb2e04c152b31a6e0.webp', caption: '旅行24', orientation: 'landscape' },
+      { id: 'p64', url: '/img/df3ccd1d473a4b8aa546f532e14501b5.jpg', caption: '旅行25', orientation: 'landscape' },
+      { id: 'p65', url: '/img/3178a904eba744d1a900b667064ed0a1.webp', caption: '旅行26', orientation: 'landscape' },
+      { id: 'p66', url: '/img/abf30216b0f14d928d8336969d69d42a.jpg', caption: '旅行27', orientation: 'landscape' },
+      { id: 'p67', url: '/img/088df570c8db4d6398b16b8ca3ef8920.webp', caption: '旅行28', orientation: 'landscape' },
+      { id: 'p68', url: '/img/e73f4cfd5ced49bd8340cde1aaf33985.webp', caption: '旅行29', orientation: 'landscape' },
+      { id: 'p69', url: '/img/c9f36719cafe41bfb422351755157798.jpg', caption: '旅行30', orientation: 'landscape' },
+      { id: 'p70', url: '/img/a1b556561aaa4136bb4de3ddaad400de.webp', caption: '旅行31', orientation: 'landscape' },
+      { id: 'p71', url: '/img/8696f8333595489f9e027054f324fff7.jpg', caption: '旅行32', orientation: 'landscape' },
     ],
   },
 ]
@@ -118,6 +118,7 @@ const ALBUMS: Album[] = [
 function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onClick: () => void }) {
   const [loaded, setLoaded] = useState(false)
   const [errored, setErrored] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   const rotation = (() => {
     const seed = photo.id.charCodeAt(0) + photo.id.charCodeAt(photo.id.length - 1)
@@ -146,6 +147,7 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
           {/* 图片：直接使用原图，加载完成后淡入 */}
           {!errored && (
             <img
+              key={retryKey}
               src={photo.url}
               alt={photo.caption || '照片'}
               loading="lazy"
@@ -160,8 +162,14 @@ function PhotoCard({ photo, index, onClick }: { photo: Photo; index: number; onC
             />
           )}
           {errored && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-200 dark:bg-slate-700">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-200 dark:bg-slate-700 gap-2">
               <Camera className="w-8 h-8 text-slate-400" />
+              <span className="text-[10px] text-slate-400">加载失败</span>
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); setErrored(false); setLoaded(false); setRetryKey(k => k + 1) }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-300 dark:bg-slate-600 text-[10px] text-slate-600 dark:text-slate-200 hover:bg-accent hover:text-white transition-colors">
+                <RotateCw className="w-3 h-3" /> 重试
+              </button>
             </div>
           )}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
@@ -298,15 +306,20 @@ function AlbumCard({ album, isExpanded, onToggle, onPhotoClick }: {
 }
 
 // ========== 全屏灯箱（单张照片查看，与原站一致）==========
-function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
+function Lightbox({ photos, currentIndex, isOpen, onClose, onPrev, onNext }: {
   photos: Photo[]
   currentIndex: number
+  isOpen: boolean
   onClose: () => void
   onPrev: () => void
   onNext: () => void
 }) {
   const photo = photos[currentIndex]
-  const open = photo !== undefined
+  const open = isOpen && photo !== undefined
+  const [imgError, setImgError] = useState(false)
+  const [imgRetryKey, setImgRetryKey] = useState(0)
+
+  useEffect(() => { setImgError(false) }, [currentIndex, isOpen])
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (!open) return
@@ -388,10 +401,23 @@ function Lightbox({ photos, currentIndex, onClose, onPrev, onNext }: {
             className="relative z-10 max-w-[90vw] max-h-[85vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <img src={photo.url} alt={photo.caption || '照片'}
-              decoding="async"
-              className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
-            {photo.caption && (
+            {!imgError ? (
+              <img key={imgRetryKey} src={photo.url} alt={photo.caption || '照片'}
+                decoding="async"
+                onError={() => setImgError(true)}
+                className="max-h-[85vh] w-auto object-contain rounded-lg shadow-2xl" />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 w-80 h-60 rounded-lg bg-white/5">
+                <Camera className="w-10 h-10 text-white/30" />
+                <span className="text-sm text-white/50">图片加载失败</span>
+                <button type="button"
+                  onClick={(e) => { e.stopPropagation(); setImgError(false); setImgRetryKey(k => k + 1) }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs transition-colors">
+                  <RotateCw className="w-3.5 h-3.5" /> 重新加载
+                </button>
+              </div>
+            )}
+            {photo.caption && !imgError && (
               <div className="absolute -bottom-10 left-0 right-0 text-center">
                 <span className="text-sm text-white/70 font-serif italic">{photo.caption}</span>
               </div>
@@ -494,9 +520,10 @@ export default function Gallery() {
       <Lightbox
         photos={currentPhotos}
         currentIndex={currentIndex}
-        onClose={() => setLightboxOpen(false)}
-        onPrev={() => setCurrentIndex((i) => (i - 1 + currentPhotos.length) % currentPhotos.length)}
-        onNext={() => setCurrentIndex((i) => (i + 1) % currentPhotos.length)}
+        isOpen={lightboxOpen}
+        onClose={() => { setLightboxOpen(false); setCurrentPhotos([]) }}
+        onPrev={() => currentPhotos.length > 0 && setCurrentIndex((i) => (i - 1 + currentPhotos.length) % currentPhotos.length)}
+        onNext={() => currentPhotos.length > 0 && setCurrentIndex((i) => (i + 1) % currentPhotos.length)}
       />
     </div>
   )
