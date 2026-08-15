@@ -61,6 +61,7 @@ export function FullPlayer({
           <img
             src={song.cover}
             alt=""
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover scale-110 blur-3xl opacity-30"
             onError={(e) => { e.currentTarget.style.display = 'none' }}
           />
@@ -97,6 +98,7 @@ export function FullPlayer({
                     <img
                       src={song.cover}
                       alt={song.name}
+                      decoding="async"
                       className={`relative z-10 h-44 w-44 sm:h-56 sm:w-56 md:h-64 md:w-64
                         rounded-full object-cover
                         ${isPlaying ? 'animate-spin-slow' : ''}`}

@@ -80,6 +80,8 @@ function Avatar({ friend }: { friend: Friend }) {
       <img
         src={friend.avatar}
         alt={friend.name}
+        loading="lazy"
+        decoding="async"
         className="w-full h-full object-cover"
         onError={() => setErrored(true)}
       />

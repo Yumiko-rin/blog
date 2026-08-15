@@ -19,6 +19,9 @@ import { Footer } from '@/components/layout/Footer'
 
 const PAGE_SIZE = 6
 
+/** 仅首次访问首页时播放入场动画，避免路由切换时反复闪屏 */
+let homeFirstVisit = true
+
 /**
  * Home 首页 - Sigrika 风格三栏布局
  * --------------------------------------------------
@@ -26,9 +29,14 @@ const PAGE_SIZE = 6
  * 文章列表：两两一行（双列网格），超出后底部数字分页（1-9 页标）
  */
 export default function Home() {
+  const shouldAnimate = homeFirstVisit
   const [bannerIndex, setBannerIndex] = useState(0)
   const [page, setPage] = useState(1)
   const [articles, setArticles] = useState(ARTICLES)
+
+  useEffect(() => {
+    homeFirstVisit = false
+  }, [])
 
   // 异步加载文章（后台发布的 + 静态内置合并），静态数据作为初始值避免空白闪烁
   useEffect(() => {
@@ -103,19 +111,19 @@ export default function Home() {
       <div className="main-grid relative z-20 -mt-16">
         {/* 左侧栏 */}
         <aside className="left-sidebar space-y-4">
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <ProfileCard />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <SidebarMusicPlayer />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <ScheduleWidget />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <AccessStatsWidget />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <HotSearchWidget />
           </div>
         </aside>
@@ -125,7 +133,7 @@ export default function Home() {
           {/* 文章列表 - 双列网格 */}
           <div className="post-cards-grid">
             {pageArticles.map((article, index) => (
-              <div key={article.id} className="onload-animation" style={{ animationDelay: `${0.05 * (index + 1)}s` }}>
+              <div key={article.id} className={shouldAnimate ? 'onload-animation' : ''} style={shouldAnimate ? { animationDelay: `${0.05 * (index + 1)}s` } : undefined}>
                 <PostCard article={article} />
               </div>
             ))}
@@ -186,19 +194,19 @@ export default function Home() {
 
         {/* 右侧栏 */}
         <aside className="right-sidebar space-y-4">
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <SiteStatsWidget />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <OnlineVisitors />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <WeatherWidget />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <FestivalCountdownWidget />
           </div>
-          <div className="onload-animation">
+          <div className={shouldAnimate ? 'onload-animation' : ''}>
             <ArticleHeatmap />
           </div>
         </aside>

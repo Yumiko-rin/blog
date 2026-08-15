@@ -689,6 +689,10 @@ function handleLocalApi(req, res) {
       return true
     }
 
+    /* ---- 前台文章/说说列表（本地开发返回空列表，前端会 fallback 到静态数据） ---- */
+    if (route === '/articles' && req.method === 'GET') return send(res, 200, { list: [] })
+    if (route === '/shuoshuo' && req.method === 'GET') return send(res, 200, { list: [] })
+
     return send(res, 404, { error: 'not found', route })
   }
 

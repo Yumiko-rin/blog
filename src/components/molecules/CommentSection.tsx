@@ -554,6 +554,8 @@ export function CommentSection({ path }: { path: string }) {
           <img
             src={avatarFor(`${session.nick}|${session.mail}`)}
             alt={session.nick}
+            loading="lazy"
+            decoding="async"
             className="h-7 w-7 rounded-full object-cover ring-2 ring-accent/25"
           />
           <span className="text-sm font-bold text-[rgb(var(--text-primary))]">{session.nick}</span>

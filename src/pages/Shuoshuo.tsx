@@ -80,7 +80,7 @@ function ShuoshuoItem({ item, isLast }: { item: Shuoshuo; isLast?: boolean }) {
         {item.images && item.images.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {item.images.map((src, i) => (
-              <img key={i} src={src} alt="" className="w-full h-24 object-cover rounded-xl" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+              <img key={i} src={src} alt="" className="w-full h-24 object-cover rounded-xl" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display = 'none' }} />
             ))}
           </div>
         )}

@@ -56,6 +56,7 @@ export default function Login() {
             <img
               src={avatarFor(`${session.nick}|${session.mail}`)}
               alt="avatar"
+              decoding="async"
               className="mx-auto h-20 w-20 rounded-full object-cover ring-2 ring-accent/25"
             />
             <h2 className="mt-4 text-xl font-bold text-[rgb(var(--text-primary))]">{session.nick}</h2>

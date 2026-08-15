@@ -30,6 +30,7 @@ interface AdminEnv extends Env {
   ADMIN_KV?: KVNamespace
   ADMIN_PASSWORD?: string
   JWT_SECRET?: string
+  ASSETS?: { fetch: (req: Request) => Promise<Response> }
 }
 
 const ADMIN_PASSWORD = '123456'
@@ -163,9 +164,10 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
   const url = new URL(request.url)
   const route = url.pathname.replace('/admin', '') || '/'
 
-  // SPA 页面导航（GET 无 Authorization 头）直接放行，交给前端路由
-  // API 调用：POST 请求 或 GET 请求带 Authorization 头
-  if (request.method === 'GET' && !getToken(request)) {
+  // SPA 页面导航（浏览器请求 Accept 包含 text/html）直接放行，交给前端路由
+  // API 调用：Accept 不包含 text/html
+  const accept = request.headers.get('Accept') || ''
+  if (request.method === 'GET' && accept.includes('text/html')) {
     return context.next()
   }
 
@@ -469,6 +471,18 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
         uv: stats.visitors?.length || 0,
         days: dayList,
       })
+    }
+
+    /* ---- 非 API 路由 - 回退到 SPA（让前端路由处理） ---- */
+    if (env?.ASSETS) {
+      const assetUrl = new URL(request.url)
+      if (route === '/') {
+        assetUrl.pathname = '/index.html'
+      } else {
+        // 非 / 路径且非 API 路由，也回退到 index.html
+        assetUrl.pathname = '/index.html'
+      }
+      return env.ASSETS.fetch(new Request(assetUrl, request))
     }
 
     return json({ error: 'not found', route }, 404)

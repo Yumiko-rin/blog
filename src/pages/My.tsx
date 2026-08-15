@@ -247,6 +247,7 @@ export default function My() {
         <div className="relative flex flex-col sm:flex-row items-center gap-6">
           <div className="avatar-frame shrink-0">
             <img src={avatar} alt="Avatar"
+              decoding="async"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_AVATAR }}
               className="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover shadow-xl" />
           </div>

@@ -28,6 +28,7 @@ export default function About() {
             <img
               src={avatar}
               alt="Avatar"
+              decoding="async"
               onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_AVATAR }}
               className="h-28 w-28 shrink-0 rounded-full object-cover ring-4 ring-accent/20"
             />

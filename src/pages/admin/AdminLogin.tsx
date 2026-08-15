@@ -8,7 +8,7 @@ import { useAdminStore } from '@/store/useAdminStore'
 /**
  * AdminLogin 后台登录页
  * --------------------------------------------------
- * 暗色毛玻璃风格，背景使用 /bg/anime_01.jpg
+ * 暗色毛玻璃风格，背景使用 /bg/anime_01.webp
  * 密码登录 → 获取 token → 存入 store → 跳转 /admin
  */
 export default function AdminLogin() {
@@ -47,7 +47,7 @@ export default function AdminLogin() {
     <div
       className="relative flex min-h-screen items-center justify-center overflow-hidden p-4"
       style={{
-        backgroundImage: 'url(/bg/anime_01.jpg)',
+        backgroundImage: 'url(/bg/anime_01.webp)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}

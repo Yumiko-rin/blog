@@ -61,7 +61,7 @@ const LOCAL_KEY = 'blog_comments_v2'
 /* 头像池：混合多种风格，增加多样性 */
 const AVATAR_POOL: string[] = [
   ...Array.from({ length: 24 }, (_, i) => `/avatars/dmoe_${String(i + 1).padStart(2, '0')}.jpg`),
-  ...Array.from({ length: 8 }, (_, i) => `/avatars/avatar_${String(i + 1).padStart(2, '0')}.png`),
+  ...Array.from({ length: 8 }, (_, i) => `/avatars/avatar_${String(i + 1).padStart(2, '0')}.webp`),
   '/avatars/real_15.jpg',
   '/avatars/friend_ringo.png',
   '/avatars/friend_yukina.png',

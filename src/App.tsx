@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { useTheme } from '@/hooks/useTheme'
 import { GlobalPlayer } from '@/components/music/GlobalPlayer'
 import { DynamicBackground } from '@/components/background/DynamicBackground'
@@ -35,12 +35,28 @@ const CommentManage = lazy(() => import('@/pages/admin/CommentManage'))
 const FriendManage = lazy(() => import('@/pages/admin/FriendManage'))
 const StatsView = lazy(() => import('@/pages/admin/StatsView'))
 
+/** 空白 fallback — 避免路由切换时出现闪烁 spinner */
 function PageFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="w-8 h-8 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  return null
+}
+
+/** 首屏加载后预获取所有路由 chunk，消除后续导航的 Suspense 延迟 */
+function RoutePrefetcher() {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      import('@/pages/ArticleDetail')
+      import('@/pages/Archive')
+      import('@/pages/Tags')
+      import('@/pages/Music')
+      import('@/pages/Friends')
+      import('@/pages/My')
+      import('@/pages/Gallery')
+      import('@/pages/Shuoshuo')
+      import('@/pages/Moments')
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [])
+  return null
 }
 
 /**
@@ -55,6 +71,9 @@ export default function App() {
     <>
       {/* 首次加载动画 */}
       <LoadingAnimation />
+
+      {/* 预获取路由 chunk（延迟 3s 不与首屏竞争） */}
+      <RoutePrefetcher />
 
       {/* 自定义鼠标光标（桌面端） */}
       {!isAdmin && <CustomCursor />}

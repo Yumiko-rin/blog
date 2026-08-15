@@ -164,6 +164,15 @@ export function Header() {
                 )
               })}
             </nav>
+            <div className="border-t border-white/10 mt-2 pt-3 px-4">
+              <div className="flex items-center gap-2">
+                <BackgroundSettings />
+                <GeneralSettings />
+                <div className="ml-auto">
+                  <ThemeToggle />
+                </div>
+              </div>
+            </div>
           </div>
         </>
       )}

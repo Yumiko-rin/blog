@@ -46,6 +46,7 @@ export function SidebarMusicPlayer() {
           {currentSong?.cover && !coverError ? (
             <img src={currentSong.cover} alt={currentSong.name}
               className={`w-14 h-14 rounded-xl object-cover shadow-md ${isPlaying ? 'animate-spin-slow' : ''}`}
+              loading="lazy" decoding="async"
               onError={() => setCoverError(true)} />
           ) : (
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-accent/20 to-accent/10 flex items-center justify-center">

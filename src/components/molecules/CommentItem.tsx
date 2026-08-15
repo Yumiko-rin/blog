@@ -52,6 +52,8 @@ export function CommentItem({ comment, index }: CommentItemProps) {
           <img
             src={comment.avatar}
             alt={comment.name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover"
           />
         ) : (

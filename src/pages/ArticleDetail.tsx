@@ -204,6 +204,9 @@ export default function ArticleDetail() {
                       </code>
                     )
                   },
+                  img: ({ src, alt, ...props }) => (
+                    <img src={src} alt={alt || ''} loading="lazy" decoding="async" className="rounded-lg" {...props} />
+                  ),
                 }}
               >
                 {article.content}

@@ -28,6 +28,7 @@ Thumbs.db
 # 缓存
 .cache/
 coverage/
+.wrangler/
 
 # 临时 / 测试产物（非源码）
 .tmp_probe/

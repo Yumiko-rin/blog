@@ -144,6 +144,8 @@ export function PlaylistPanel({
                 <img
                   src={pl.cover}
                   alt={pl.name}
+                  loading="lazy"
+                  decoding="async"
                   className={`h-14 w-14 rounded-xl object-cover shadow-md
                     transition-transform duration-300
                     ${isSelected ? 'scale-105' : 'group-hover:scale-105'}`}
@@ -187,6 +189,7 @@ export function PlaylistPanel({
             <img
               src={selected.cover}
               alt=""
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-20"
               onError={(e) => { e.currentTarget.style.display = 'none' }}
             />
@@ -199,6 +202,7 @@ export function PlaylistPanel({
                 <img
                   src={selected.cover}
                   alt={selected.name}
+                  decoding="async"
                   className="h-16 w-16 rounded-2xl object-cover"
                   onError={(e) => { e.currentTarget.style.opacity = '0' }}
                 />
@@ -294,6 +298,8 @@ export function PlaylistPanel({
                     <img
                       src={song.cover}
                       alt={song.name}
+                      loading="lazy"
+                      decoding="async"
                       className={`h-10 w-10 rounded-lg object-cover shadow-sm
                         transition-transform duration-300
                         ${isCurrent ? 'ring-2 ring-accent/50' : 'group-hover:scale-110'}`}

@@ -53,6 +53,7 @@ export function ImageLightbox() {
       <img
         src={src}
         alt={alt}
+        decoding="async"
         className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         style={{ animation: 'zoomIn 0.25s ease' }}

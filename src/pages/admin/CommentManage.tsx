@@ -153,6 +153,8 @@ export default function CommentManage() {
                       <img
                         src={item.avatar}
                         alt={item.name}
+                        loading="lazy"
+                        decoding="async"
                         className="h-6 w-6 rounded-full object-cover"
                       />
                     )}

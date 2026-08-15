@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, type FormEvent, type ChangeEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Pencil, Trash2, X, FileText, Loader2, Tag, Calendar, Upload, Info, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, FileText, Loader2, Tag, Calendar, Upload, Info, ChevronDown, Eye, Edit3 } from 'lucide-react'
 import { adminApi } from '@/utils/adminApi'
 import { useToast } from '@/hooks/useToast'
 import { Toast } from '@/components/admin/Toast'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+import { CodeBlock } from '@/components/home/CodeBlockEnhance'
 
 /** 后台文章条目 */
 interface ArticleItem {
@@ -57,6 +61,7 @@ export default function ArticleManage() {
   const { toast, showToast } = useToast()
   const [uploading, setUploading] = useState(false)
   const [showHint, setShowHint] = useState(false)
+  const [previewTab, setPreviewTab] = useState<'edit' | 'preview'>('edit')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   /** 加载文章列表 */
@@ -441,6 +446,8 @@ excerpt: 文章摘要
                     <img
                       src={form.cover}
                       alt="封面预览"
+                      loading="lazy"
+                      decoding="async"
                       className="h-32 w-full object-cover"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                     />
@@ -464,13 +471,163 @@ excerpt: 文章摘要
                   <label className="mb-1.5 block text-sm font-medium text-white/60">
                     内容（Markdown）
                   </label>
-                  <textarea
-                    value={form.content}
-                    onChange={(e) => setForm({ ...form, content: e.target.value })}
-                    rows={10}
-                    placeholder="支持 Markdown 语法..."
-                    className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
-                  />
+                  {/* 编辑器/预览切换标签 */}
+                  <div className="mb-2 flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5 w-fit">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('edit')}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                        previewTab === 'edit'
+                          ? 'bg-white/15 text-white shadow-sm'
+                          : 'text-white/40 hover:text-white/70'
+                      }`}
+                    >
+                      <Edit3 size={13} /> 编辑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('preview')}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                        previewTab === 'preview'
+                          ? 'bg-white/15 text-white shadow-sm'
+                          : 'text-white/40 hover:text-white/70'
+                      }`}
+                    >
+                      <Eye size={13} /> 预览
+                    </button>
+                  </div>
+                  {previewTab === 'edit' ? (
+                    <textarea
+                      value={form.content}
+                      onChange={(e) => setForm({ ...form, content: e.target.value })}
+                      rows={10}
+                      placeholder="支持 Markdown 语法..."
+                      className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
+                    />
+                  ) : (
+                    <div className="min-h-[260px] rounded-xl border border-white/10 bg-white/5 px-5 py-4 leading-relaxed text-white/80 max-w-none overflow-auto" style={{ fontSize: '1rem', lineHeight: 1.85, letterSpacing: '0.01em' }}>
+                      {form.content ? (
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeHighlight]}
+                          components={{
+                            h1: ({ children }) => (
+                              <h1 className="font-extrabold text-white mt-8 mb-3 pb-2 border-b border-white/10" style={{ fontSize: '1.75rem', lineHeight: 1.3 }}>
+                                {children}
+                              </h1>
+                            ),
+                            h2: ({ children }) => (
+                              <h2 className="font-bold text-white mt-7 mb-3" style={{ fontSize: '1.4rem', lineHeight: 1.35, paddingLeft: '0.6em', borderLeft: '4px solid rgba(180,130,220,0.6)' }}>
+                                {children}
+                              </h2>
+                            ),
+                            h3: ({ children }) => (
+                              <h3 className="font-bold text-white mt-6 mb-2" style={{ fontSize: '1.15rem', lineHeight: 1.4 }}>
+                                {children}
+                              </h3>
+                            ),
+                            p: ({ children }) => (
+                              <p className="text-white/80 leading-relaxed" style={{ margin: '1.1em 0' }}>{children}</p>
+                            ),
+                            a: ({ href, children }) => (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-accent no-underline"
+                                style={{ borderBottom: '1px dashed rgba(180,130,220,0.4)' }}
+                              >
+                                {children}
+                              </a>
+                            ),
+                            ul: ({ children }) => (
+                              <ul className="pl-6 list-disc text-white/80" style={{ margin: '1em 0' }}>{children}</ul>
+                            ),
+                            ol: ({ children }) => (
+                              <ol className="pl-6 list-decimal text-white/80" style={{ margin: '1em 0' }}>{children}</ol>
+                            ),
+                            li: ({ children }) => (
+                              <li style={{ margin: '0.4em 0' }}>{children}</li>
+                            ),
+                            blockquote: ({ children }) => (
+                              <blockquote
+                                className="italic rounded-r-lg text-white/70"
+                                style={{
+                                  margin: '1.2em 0',
+                                  padding: '0.6em 1.2em',
+                                  borderLeft: '4px solid rgba(180,130,220,0.6)',
+                                  background: 'rgba(255,255,255,0.03)',
+                                }}
+                              >
+                                {children}
+                              </blockquote>
+                            ),
+                            code: ({ className, children }) => {
+                              const isInline = !className
+                              if (isInline) {
+                                return (
+                                  <code className="rounded font-mono text-accent" style={{ fontSize: '0.85em', padding: '0.15em 0.4em', background: 'rgba(180,130,220,0.1)' }}>
+                                    {children}
+                                  </code>
+                                )
+                              }
+                              return <code className={className}>{children}</code>
+                            },
+                            pre: ({ children }) => (
+                              <CodeBlock className={''}>{children}</CodeBlock>
+                            ),
+                            img: ({ src, alt }) => (
+                              <img
+                                src={src}
+                                alt={alt || ''}
+                                loading="lazy"
+                                decoding="async"
+                                className="rounded-lg max-w-full"
+                                style={{ margin: '1.2em auto', display: 'block', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none'
+                                }}
+                              />
+                            ),
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto" style={{ margin: '1.2em 0' }}>
+                                <table className="w-full text-sm text-white/80" style={{ borderCollapse: 'collapse', fontSize: '0.9rem' }}>{children}</table>
+                              </div>
+                            ),
+                            thead: ({ children }) => (
+                              <thead style={{ background: 'rgba(255,255,255,0.05)' }}>{children}</thead>
+                            ),
+                            th: ({ children }) => (
+                              <th className="text-left font-bold text-white" style={{ padding: '0.6em 1em', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td style={{ padding: '0.6em 1em', border: '1px solid rgba(255,255,255,0.06)' }}>{children}</td>
+                            ),
+                            hr: () => (
+                              <hr style={{ border: 'none', height: '1px', margin: '2em 0', background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent)' }} />
+                            ),
+                            strong: ({ children }) => (
+                              <strong className="font-bold text-white">{children}</strong>
+                            ),
+                            em: ({ children }) => (
+                              <em className="italic">{children}</em>
+                            ),
+                            del: ({ children }) => (
+                              <del className="text-white/50">{children}</del>
+                            ),
+                          }}
+                        >
+                          {form.content}
+                        </ReactMarkdown>
+                      ) : (
+                        <div className="flex items-center justify-center h-48 text-white/20">
+                          <span className="text-sm">暂无内容，切换到「编辑」标签开始写作</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 pt-2">

@@ -135,6 +135,8 @@ export default function FriendManage() {
                       <img
                         src={item.avatar}
                         alt={item.name}
+                        loading="lazy"
+                        decoding="async"
                         className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-white/10"
                       />
                     ) : (

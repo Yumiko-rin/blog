@@ -560,29 +560,111 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 友链申请
-    if (route === '/friends/apply' && request.method === 'POST') {
+    // 友链申请提交（与前端 Friends.tsx 路由一致）
+    if (route === '/friend-applications' && request.method === 'POST') {
       if (!kv) return json({ error: 'KV not configured' }, 503)
       const body = await readBody(request)
-      if (!body.name || !body.url) return json({ error: '名称和地址必填' }, 400)
+      const name = String(body.name || '').trim().slice(0, 60)
+      const url = String(body.url || '').trim().slice(0, 200)
+      const avatar = String(body.avatar || '').trim().slice(0, 300)
+      const description = String(body.description || '').trim().slice(0, 200)
+      const email = String(body.email || '').trim().slice(0, 120)
+      const message = String(body.message || '').trim().slice(0, 500)
+      const token = String(body.token || '').trim().slice(0, 64)
+
+      const URL_RE = /^https?:\/\/[\w-]+(\.[\w-]+)+([/?#].*)?$/i
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+      if (name.length < 2 || name.length > 24) return json({ error: '站点名称需为 2~24 个字符' }, 400)
+      if (!URL_RE.test(url)) return json({ error: '站点地址需为合法的 http(s):// 网址' }, 400)
+      if (!avatar) return json({ error: '请填写头像链接' }, 400)
+      if (!URL_RE.test(avatar)) return json({ error: '头像链接需为合法的 http(s):// 图片地址' }, 400)
+      if (email && !EMAIL_RE.test(email)) return json({ error: '邮箱格式不正确' }, 400)
+
       try {
         const raw = await kv.get('friend_applications')
         const list: any[] = raw ? JSON.parse(raw) : []
+        const dup = list.find((a: any) => a.url === url && (a.status === 'pending' || a.status === 'approved'))
+        if (dup) {
+          return json({ error: dup.status === 'approved' ? '该站点已是友链' : '该站点已提交过申请，请等待审核' }, 400)
+        }
+
         const app = {
-          id: `fa${Date.now().toString(36)}`,
-          name: String(body.name).slice(0, 50),
-          url: String(body.url).slice(0, 200),
-          avatar: String(body.avatar || '').slice(0, 300),
-          description: String(body.description || '').slice(0, 200),
-          tag: String(body.tag || '博客').slice(0, 20),
+          id: `fa${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          name,
+          url,
+          avatar,
+          description,
+          email,
+          message,
+          tag: '博客',
           status: 'pending',
           createdAt: new Date().toISOString(),
+          ownerToken: token,
         }
         list.push(app)
         await kv.put('friend_applications', JSON.stringify(list))
-        return json({ ok: true, id: app.id })
+
+        const publicApp = {
+          id: app.id,
+          name: app.name,
+          url: app.url,
+          avatar: app.avatar || '',
+          description: app.description || '',
+          email: app.email || '',
+          message: app.message || '',
+          status: app.status,
+          createdAt: app.createdAt,
+          mine: !!token,
+        }
+        return json({ ok: true, application: publicApp })
       } catch {
         return json({ error: '申请失败' }, 500)
+      }
+    }
+
+    // 查询我的友链申请
+    if (route === '/friend-applications' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('friend_applications')
+        const list: any[] = raw ? JSON.parse(raw) : []
+        const mine = list.filter((a: any) => a.ownerToken === viewer)
+        return json({
+          ok: true,
+          list: mine.map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            url: a.url,
+            avatar: a.avatar || '',
+            description: a.description || '',
+            status: a.status || 'pending',
+            createdAt: a.createdAt,
+            mine: true,
+          })),
+        })
+      } catch {
+        return json({ ok: true, list: [] })
+      }
+    }
+
+    // 获取已通过的友链
+    if (route === '/friend-applications/approved' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('friend_applications')
+        const list: any[] = raw ? JSON.parse(raw) : []
+        const approved = list
+          .filter((a: any) => a.status === 'approved')
+          .map((a: any) => ({
+            id: a.id || `friend-${a.name}`,
+            name: a.name || '',
+            url: a.url || '',
+            avatar: a.avatar || '',
+            description: a.description || '',
+            tag: a.tag || '博客',
+          }))
+        return json({ ok: true, list: approved })
+      } catch {
+        return json({ ok: true, list: [] })
       }
     }
 

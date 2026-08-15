@@ -659,7 +659,7 @@ function RandomImageTool() {
     <div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center relative">
       {error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span>
         : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" />
-        : <img src={src} alt="随机图片" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
+        : <img src={src} alt="随机图片" loading="lazy" decoding="async" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
     </div>
     <button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors">换一张</button>
   </div>
@@ -672,7 +672,7 @@ function BingDailyTool() {
     <div className="rounded-xl overflow-hidden bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center relative">
       {error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span>
         : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" />
-        : <img src={src} alt="必应每日" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
+        : <img src={src} alt="必应每日" loading="lazy" decoding="async" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
     </div>
   </div>
 }
@@ -842,7 +842,7 @@ function GenshinImageTool() {
     <div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center relative">
       {error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span>
         : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" />
-        : <img src={src} alt="原神图片" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
+        : <img src={src} alt="原神图片" loading="lazy" decoding="async" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
     </div>
     <button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-400 to-indigo-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">换一张</button>
   </div>
@@ -858,7 +858,7 @@ function Wallpaper4KTool() {
     <div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center relative">
       {error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span>
         : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" />
-        : <img src={src} alt="4K壁纸" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
+        : <img src={src} alt="4K壁纸" loading="lazy" decoding="async" className="w-full h-48 object-cover transition-opacity duration-300" style={{ opacity: loaded ? 1 : 0 }} />}
     </div>
     <button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-teal-400 to-cyan-500 text-white text-sm font-medium hover:opacity-90 transition-opacity">换一张</button>
   </div>

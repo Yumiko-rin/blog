@@ -81,6 +81,7 @@ export function PostCard({ article, index = 0 }: PostCardProps) {
                   alt={article.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-accent/20 to-accent/5" />

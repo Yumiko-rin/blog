@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, X, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
+import { ArrowLeft, Camera, X, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
 import { playClickSound } from '@/utils/sounds'
 
 interface Photo {
@@ -438,6 +439,7 @@ function Lightbox({ photos, currentIndex, isOpen, onClose, onPrev, onNext }: {
 
 // ========== 主页面 ==========
 export default function Gallery() {
+  const navigate = useNavigate()
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [currentPhotos, setCurrentPhotos] = useState<Photo[]>([])
@@ -470,7 +472,7 @@ export default function Gallery() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12">
-      {/* 页头（与原站一致） */}
+      {/* 页头 */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -478,6 +480,13 @@ export default function Gallery() {
         className="mb-6 md:mb-12"
       >
         <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+          <button type="button" onClick={() => navigate(-1)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
+              bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]
+              hover:bg-accent/10 hover:text-accent transition-all mr-2 md:mr-3"
+            aria-label="返回上一页">
+            <ArrowLeft size={14} /> 返回
+          </button>
           <Camera className="w-5 h-5 md:w-7 md:h-7 text-sky-500" />
           <h1 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">照片墙</h1>
         </div>

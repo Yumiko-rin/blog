@@ -67,7 +67,7 @@ export function CatImageTool() {
   const { src, loaded, error, load } = useImageLoader()
   const reload = () => { fetch('https://api.thecatapi.com/v1/images/search').then(r => r.json()).then(d => { if (d[0]?.url) load(d[0].url) }).catch(() => {}) }
   useEffect(() => { reload() }, [])
-  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="猫猫" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-500 text-white text-sm font-medium hover:opacity-90">喵一个🐱</button></div>
+  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="猫猫" loading="lazy" decoding="async" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-400 to-amber-500 text-white text-sm font-medium hover:opacity-90">喵一个🐱</button></div>
 }
 
 // ========== 3. 随机狗狗图 ==========
@@ -75,7 +75,7 @@ export function DogImageTool() {
   const { src, loaded, error, load } = useImageLoader()
   const reload = () => { fetch('https://api.thedogapi.com/v1/images/search').then(r => r.json()).then(d => { if (d[0]?.url) load(d[0].url) }).catch(() => {}) }
   useEffect(() => { reload() }, [])
-  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="狗狗" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-sm font-medium hover:opacity-90">汪一个🐶</button></div>
+  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="狗狗" loading="lazy" decoding="async" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 text-white text-sm font-medium hover:opacity-90">汪一个🐶</button></div>
 }
 
 // ========== 4. 动漫随机图 ==========
@@ -84,7 +84,7 @@ export function AnimeImageTool() {
   const [current, setCurrent] = useState('')
   const reload = () => { const next = pickLocal(current); setCurrent(next); load(next) }
   useEffect(() => { reload() }, [])
-  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="动漫" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 text-white text-sm font-medium hover:opacity-90">换一张🎨</button></div>
+  return <div className="p-4"><div className="rounded-xl overflow-hidden mb-3 bg-[rgb(var(--bg-secondary))] h-48 flex items-center justify-center">{error ? <span className="text-sm text-[rgb(var(--text-secondary))]">加载失败</span> : !loaded ? <RefreshCw size={20} className="animate-spin text-accent" /> : <img src={src} alt="动漫" loading="lazy" decoding="async" className="w-full h-48 object-cover" style={{ opacity: loaded ? 1 : 0 }} />}</div><button type="button" onClick={reload} className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 text-white text-sm font-medium hover:opacity-90">换一张🎨</button></div>
 }
 
 // ========== 5. 抽象艺术图 ==========
@@ -152,7 +152,7 @@ export function AvatarGeneratorTool() {
   return <div className="p-4 space-y-3">
     <div className="rounded-xl overflow-hidden bg-[rgb(var(--bg-secondary))] h-36 flex items-center justify-center">
       {!imgLoaded && <RefreshCw size={20} className="animate-spin text-accent" />}
-      <img src={avatarUrl} alt="头像" className="w-32 h-32" style={{ opacity: imgLoaded ? 1 : 0 }} onLoad={() => setImgLoaded(true)} />
+      <img src={avatarUrl} alt="头像" loading="lazy" decoding="async" className="w-32 h-32" style={{ opacity: imgLoaded ? 1 : 0 }} onLoad={() => setImgLoaded(true)} />
     </div>
     <div className="flex flex-wrap gap-1.5">{styles.map(s => <button key={s} type="button" onClick={() => setStyle(s)} className={`px-2 py-1 rounded-lg text-xs ${style === s ? 'bg-accent text-white' : 'bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]'}`}>{s}</button>)}</div>
     <div className="flex gap-2">

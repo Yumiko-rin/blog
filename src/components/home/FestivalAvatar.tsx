@@ -80,6 +80,8 @@ export function FestivalAvatar({ size = 80, src, className = '' }: FestivalAvata
       <img
         src={avatar}
         alt="avatar"
+        loading="lazy"
+        decoding="async"
         className="absolute rounded-full object-cover"
         style={{
           inset: 5,

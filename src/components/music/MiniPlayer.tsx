@@ -70,6 +70,7 @@ export function MiniPlayer({
               <img
                 src={song.cover}
                 alt={song.name}
+                decoding="async"
                 className={`h-12 w-12 rounded-2xl object-cover shadow-lg
                   ${isPlaying ? 'animate-spin-slow' : ''}`}
                 onError={(e) => { e.currentTarget.style.opacity = '0' }}

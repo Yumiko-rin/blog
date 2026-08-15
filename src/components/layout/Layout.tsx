@@ -21,7 +21,9 @@ export function Layout() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className={`flex-1 ${isHome ? '' : 'pt-16 pb-10'}`}>
-        <Outlet />
+        <div key={location.pathname} className="animate-route-fade-in">
+          <Outlet />
+        </div>
       </main>
       {!isHome && <Footer />}
       <FloatingBackToTop />

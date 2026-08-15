@@ -221,6 +221,8 @@ export function BackgroundSettings() {
               <img
                 src={current.url}
                 alt="当前背景"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[10px] text-center py-1">
@@ -255,7 +257,7 @@ export function BackgroundSettings() {
                   className={`relative rounded-lg overflow-hidden aspect-square border-2 transition-all
                     ${settings.bgIndex === i ? 'border-accent ring-1 ring-accent/30' : 'border-transparent hover:border-accent/30'}`}
                   title={`切换到${bg.label}`}>
-                  <img src={bg.thumb} alt={bg.label} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={bg.thumb} alt={bg.label} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>

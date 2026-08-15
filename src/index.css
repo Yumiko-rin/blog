@@ -503,15 +503,17 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .onload-animation {
-  animation: onload-fade-in 0.5s ease forwards;
-  opacity: 0;
+  animation: onload-fade-in 0.3s ease forwards;
 }
-.onload-animation:nth-child(1) { animation-delay: 0.05s; }
-.onload-animation:nth-child(2) { animation-delay: 0.1s; }
-.onload-animation:nth-child(3) { animation-delay: 0.15s; }
-.onload-animation:nth-child(4) { animation-delay: 0.2s; }
-.onload-animation:nth-child(5) { animation-delay: 0.25s; }
-.onload-animation:nth-child(6) { animation-delay: 0.3s; }
+
+/* 路由切换淡入（快速，无闪烁） */
+@keyframes route-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-route-fade-in {
+  animation: route-fade-in 0.15s ease-out;
+}
 
 /* ===== 波浪过渡（对齐 qwq.sigrika.cc 水波纹） ===== */
 .waves-wrap {
