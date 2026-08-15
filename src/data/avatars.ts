@@ -38,22 +38,23 @@ export function getRandomAvatar(): string {
   return pool[0]
 }
 
-/* ================= 当前头像（跨页面一致） ================= */
+/* ================= 当前头像（跨页面一致，每次进入网站随机） ================= */
 /**
  * 首页 ProfileCard 与「我的」页面共用同一张头像：
- * 首次进入随机抽取并存入 localStorage，后续页面读取同一值，
- * 保证「我的模块」头像与首页头像一致；每次刷新浏览器会重新随机。
+ * 首次进入随机抽取并存入 sessionStorage，后续页面读取同一值，
+ * 保证「我的模块」头像与首页头像一致；关闭浏览器/标签页后清除，
+ * 下次进入网站会重新随机抽取一张新头像。
  */
 const CURRENT_KEY = 'blog_current_avatar'
 
 export function getCurrentAvatar(): string {
   try {
-    const saved = localStorage.getItem(CURRENT_KEY)
+    const saved = sessionStorage.getItem(CURRENT_KEY)
     if (saved && AVATAR_FILES.includes(saved)) return saved
   } catch { /* ignore */ }
   const picked = getRandomAvatar()
   try {
-    localStorage.setItem(CURRENT_KEY, picked)
+    sessionStorage.setItem(CURRENT_KEY, picked)
   } catch { /* ignore */ }
   return picked
 }
