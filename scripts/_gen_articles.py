@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-生成博客三篇文章，并写入全部 4 个存储位置：
+生成博客五篇文章，并写入全部 4 个存储位置：
   - server-data/admin-articles.json   (本地运行数据，前台实际读取)
   - server/seed/articles.json         (种子，server-data 为空时填充)
   - src/data/articles.ts              (静态兜底 + git 源码，保留底部辅助函数)
@@ -405,6 +405,298 @@ Obsidian 的魅力在于「你的数据永远属于你」，又能通过双链�
 """
 
 # ---------------------------------------------------------------------------
+# 文章 4：Cloudflare 完全指南
+# ---------------------------------------------------------------------------
+cloudflare_content = r"""## 前言
+
+Cloudflare 最初被人记住是因为「免费 CDN + 防 DDoS」，但今天的它早已是一家覆盖网络、安全、边缘计算、邮件、对象存储的完整平台。对开发者来说，最香的其实是 **Cloudflare Pages + Workers + KV**：一套能白嫖、全球边缘节点、免运维地把前端和后端一起部署的方案。
+
+这篇文章从一张能力版图讲起，带你把 Cloudflare 的关键产品（DNS/CDN、Pages、Workers、KV/R2/D1、Wrangler）串起来，最后用一个「个人博客」的实战，说明怎么把前台静态页 + 后台 API 一把梭部署到边缘。
+
+![配图](https://picsum.photos/seed/cloudflare-edge/1000/500)
+
+## 一、Cloudflare 是什么
+
+用一句话概括：**Cloudflare 是一家坐在你和互联网之间的公司**。它运营着全球 300+ 城市的边缘节点，你的流量先经过它，再到达源站。这种「中间人」位置，让它能做三件大事：加速（缓存静态资源）、防护（挡攻击）、以及就近计算（在边缘跑代码）。
+
+核心能力版图：
+
+| 层级 | 产品 | 解决什么 |
+|------|------|----------|
+| 域名/网络 | DNS、CDN、DDoS 防护、WAF | 让站点快且安全 |
+| 托管 | Pages（静态+函数）、Workers | 把代码跑在边缘 |
+| 存储 | KV、R2、D1、Queues | 边缘化的数据层 |
+| 网络/邮件 | Zero Trust、Email Routing、Tunnel | 内网穿透、邮件转发 |
+
+免费套餐对个人项目已经非常够用。
+
+## 二、DNS 与 CDN：加速与防护的基石
+
+几乎所有 Cloudflare 用法都从「把域名 NS 转移到 Cloudflare」开始。
+
+- **橙色云（Proxy）**：开启后，用户访问的是 Cloudflare 的 IP，源站 IP 被隐藏，天然防扫描和 DDoS。
+- **缓存规则**：HTML 可设不缓存（保证内容实时），图片/CSS/JS 设长缓存（省流量、提速）。
+- **自动 HTTPS**：免费证书 + 强制跳转 HTTPS，省去自己配证书。
+
+> 小技巧：纯前端站建议全站橙色云 + 长缓存；后台 API 设 `Cache-Control: no-store`，避免被缓存导致数据不实时。
+
+## 三、Cloudflare Pages：静态站 + 函数的完美托管
+
+Pages 原本是给 Jamstack 前端用的，但后来加上了 **Pages Functions**（函数），让它既能托管静态资源，又能跑服务端代码。
+
+一个 Pages 项目通常是：
+
+```
+my-blog/
+├─ dist/              # 构建产物（静态前端）
+├─ functions/         # 服务端函数（按路径路由）
+│   ├─ api/
+│   │   └─ articles.ts
+│   └─ admin/
+│       └─ [[path]].ts
+└─ wrangler.toml
+```
+
+函数按文件路径自动路由：
+
+- `functions/api/articles.ts` → `/api/articles`
+- `functions/admin/[[path]].ts` → 捕获 `/admin/*` 通配路径
+
+这就是很多个人博客后台的实现方式：前台是构建出来的静态 SPA，后台是一组 Pages Functions，两者共用一个域名、一次部署。
+
+## 四、Workers：Serverless 边缘计算
+
+如果 Pages 满足不了，可以用更底层的 **Workers**：一段运行在边缘的 JavaScript/TypeScript，没有冷启动感知，全球延迟个位数毫秒。
+
+```js
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url)
+    if (url.pathname === '/hello') {
+      return new Response('Hello from the edge!')
+    }
+    return new Response('Not found', { status: 404 })
+  }
+}
+```
+
+Workers 适合：API 网关、请求改写、A/B 测试、鉴权中间件、对接第三方。
+
+## 五、KV / R2 / D1：边缘存储三剑客
+
+无服务器最怕「状态往哪放」。Cloudflare 给了三件套：
+
+| 存储 | 类型 | 典型用途 | 一致性 |
+|------|------|----------|--------|
+| **KV** | 键值 | 配置、文章、计数器、会话 | 最终一致（秒级） |
+| **R2** | 对象存储（S3 兼容） | 图片、大文件、备份 | 强一致 |
+| **D1** | SQLite | 结构化数据、查询 | 强一致（单区域） |
+
+后台数据常放在 **KV** 里：文章、友链、相册、说说，各自一个命名空间，后端函数读取后返回 JSON 给前台。KV 是「最终一致」的——写入后全球节点同步需要一点时间，对博客这类弱实时场景完全够用，但**不要拿它做金融交易或强一致计数**。
+
+> 存图片建议走 R2：KV value 有大小上限且按读次数计费，R2 更适合大文件且免出口流量费（这是相对 AWS S3 的最大优势）。
+
+## 六、Wrangler：命令行一把梭
+
+所有 Cloudflare 资源都能用官方 CLI **Wrangler** 管理：
+
+```bash
+npm install -g wrangler
+wrangler login              # 浏览器授权
+wrangler pages deploy dist  # 部署前端
+wrangler kv:key put ...     # 操作 KV
+wrangler tail               # 实时看函数日志
+```
+
+`wrangler.toml` 是项目的「身份证」，声明名称、兼容日期、绑定（KV/R2/D1）：
+
+```toml
+name = "my-blog"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-09-23"
+
+[[kv_namespaces]]
+binding = "BLOG_KV"
+id = "xxxxxxxxxxxxxxxxxxxx"
+```
+
+## 七、实战：把个人博客部署到 Cloudflare
+
+把前面几点串起来，一个最小可用的博客架构：
+
+1. **前台**：构建成静态文件 → `wrangler pages deploy dist`。
+2. **后台 API**：`functions/admin/[[path]].ts` 处理登录、增删改，数据写进 KV。
+3. **公开读接口**：`functions/api/*.ts` 读 KV 返回 JSON，前台运行时拉取。
+4. **图片**：上传走 R2 或 KV 转 base64（小图），前台直接 `<img src>` 展示。
+5. **鉴权**：后台接口校验 Bearer Token，未带则 401。
+
+部署后你得到：一个全球加速、自带 HTTPS、免服务器运维、免费额度内零成本的站点。改完代码推到 GitHub 还能联动 Pages 自动构建。
+
+## 八、免费额度与避坑
+
+免费套餐够个人用，但有边界：
+
+- KV：每日读/写次数有限（免费档约 10 万读/10 万写/天），超了按量。
+- Workers：每日请求 10 万次免费。
+- R2：存储免费额度 + 免出口流量费。
+- **坑**：KV 最终一致，刚写入立刻读可能读到旧值；调试时多用 `wrangler tail` 看真实日志。
+
+## 总结
+
+Cloudflare 的价值不在于某一个产品，而在于「网络 + 计算 + 存储」被打包成了开箱即用的边缘平台。对独立开发者和个人站长，Pages + Workers + KV/R2 这套组合几乎能覆盖 90% 的需求，且免费档就够跑起来。先把 DNS、Pages、KV 三个点用熟，再慢慢扩展到 Workers 和 R2，你会发现「部署」这件事可以轻到几乎无感。
+
+"""
+
+# ---------------------------------------------------------------------------
+# 文章 5：DeepSeek Harness (dsh) 使用全攻略
+# ---------------------------------------------------------------------------
+dsh_content = r"""## 前言
+
+2026 年 8 月 13 日，DeepSeek 开源了一个叫 **DeepSeek Harness**（简称 dsh）的东西。它不是又一个聊天壳，而是一套跑在你自己机器上的 **Agent 运行框架**。用一个官方公式概括：`Agent = Model + Harness`。模型是大脑，Harness 是身体、工具箱和安全带——让模型从「会回答」，变成「能干活」。
+
+这篇文章带你从零装好 dsh、配好密钥、选好工作区，把四种运行模式、插件系统和 headless/SDK 用法一次讲透，并给出几个能立刻上手的实战示例。
+
+![配图](https://picsum.photos/seed/deepseek-harness/1000/500)
+
+## 一、DeepSeek Harness 是什么
+
+- **开源时间**：2026-08-13，MIT 协议，GitHub 已破百 K Star。
+- **核心理念**：「一切皆插件」（Everything is a Plugin）。模型适配器、工具注册、会话日志、沙箱、存储、Agent 主循环，甚至 UI，全都是可替换、可组合的插件，底层由 **Cordis** 插件系统驱动。
+- **定位**：对标 Claude Code / OpenAI Codex 的底层运行框架，但完全开源、可自己组装。
+
+一句话理解：别的 Agent 产品是精装房（家电配好，你能换的只有抱枕）；dsh 是毛坯房 + 一面洞洞板，模型、工具、UI、权限策略，想拆哪块拆哪块。
+
+## 二、安装与启动
+
+**环境要求**：先装好 Node.js（建议 LTS），`node -v` 能输出版本号即可。
+
+官方主推一键启动，无需提前安装：
+
+```bash
+npx @deepseek-ai/dsh web
+```
+
+首次运行会自动下载依赖，稍等片刻终端输出本地地址，默认：
+
+```
+http://127.0.0.1:3080
+```
+
+浏览器打开即可。想自定义端口：
+
+```bash
+npx @deepseek-ai/dsh web --port 8080
+```
+
+长期使用可全局安装，之后直接 `dsh web`：
+
+```bash
+npm install -g @deepseek-ai/dsh
+dsh web --port 8080
+```
+
+## 三、配置 API Key
+
+启动后进入 Web UI，打开 `Settings → Models`，填入你的 DeepSeek API Key 并保存。**模型路由立即生效，无需重启**。
+
+也可以在启动前用环境变量配置（macOS / Linux）：
+
+```bash
+export DEEPSEEK_API_KEY="sk-你的密钥"
+npx @deepseek-ai/dsh web
+```
+
+> 申请地址：DeepSeek 开放平台。Key 以 `sk-` 开头，仅创建时可见，妥善保管，别提交进代码仓库。
+
+dsh 不只支持 DeepSeek：其他提供方、自定义 OpenAI 兼容端点，都能在「添加自定义提供方」里接入。
+
+## 四、选择工作区
+
+dsh 启动后**没有默认工作区**。你需要点 `Choose workspace`，选一个项目目录（通常是你运行 dsh 时所在的目录）。
+
+这个目录就是 Agent 的「文件系统」：它可以读取、编辑、移动里面的文件，跑测试、装依赖、调脚本。会话日志会记录在追加式日志里，关掉浏览器再打开，上下文依然完整。
+
+> 建议用一个你熟悉的小仓库练手，先观察它读了什么、要改什么，再逐步放开权限。
+
+## 五、四种运行模式
+
+dsh 内置多种运行模式，常用四种：
+
+| 模式 | 说明 |
+|------|------|
+| **标准模式** | 功能完整的编码 Agent：文件编辑、Shell、检索、Skills、计划、子代理、工作流 |
+| **PTC 模式** | 模型用一个 TypeScript 程序组合多轮工具调用（Code Mode SDK） |
+| **极简模式** | 仅双工具，常用于模型基准测试 |
+| **创造模式** | 运行时检查 + 插件试验 + 自定义 preset 创作 |
+
+普通干活选「标准模式」就够了。
+
+## 六、权限三档
+
+安全是 dsh 的设计重点，权限分三档：
+
+- **Read Only**：只看不动，适合纯浏览、查资料。
+- **Workspace Write**（默认）：能看能动，但敏感/系统级操作会被拦。
+- **Full Access**：最高权限，慎用。
+
+所有命令执行都在审批策略保护下，涉及敏感操作会主动请求你确认。
+
+## 七、插件系统：一切皆插件
+
+开箱即用已内置 **133+ 个插件**，覆盖模型适配、文件操作、Shell 执行、会话管理、子代理委派等。连「会话标题怎么生成」「调用失败怎么重试」都是独立插件。
+
+配置采用 **Profile + 组合包分层叠加**：
+
+```bash
+dsh --profile web --dump-config   # 查看实际启动的完整配置树
+```
+
+你可以：
+
+- 启停内置插件；
+- 写自定义插件扩展能力；
+- 用 `dsh-plugin` topic 发现社区插件。
+
+因为「一切皆插件、无特权内核、所有注册皆可逆」，dsh 也被视为面向 Agent 架构研究的开放设计（底层 Cordis 有学术论文支撑）。
+
+## 八、多种使用形态
+
+除了 Web UI，dsh 还支持：
+
+```bash
+# Headless：跑一次性任务，打印最终答案后退出
+dsh --profile headless "Summarize this repository"
+
+# CLI / Python SDK / TypeScript SDK：在程序里复用同一套 API
+pip install deepseek-harness-sdk
+```
+
+Python SDK 让你把 dsh 的能力嵌进自己的 workflow，做批量任务、自动化流水线。
+
+## 九、实战示例
+
+进标准模式、选好工作区后，试试这些：
+
+1. **总结仓库**：「Summarize this repository and identify its main packages.」——它会读代码、分析结构、给出模块清单。
+2. **改代码**：「给 utils/format.ts 加一个 toKebabCase 函数，并补单元测试。」——它改文件、跑测试、给结果。
+3. **跑命令**：「安装依赖并运行 build，把报错贴给我。」——命令在审批保护下执行。
+
+每个任务底部都会显示 Token 消耗和缓存命中率，方便你评估成本。
+
+## 十、注意事项与避坑
+
+- **开发者预览**：目前是 v0.1 预览版，官方明确会出**破坏性变更**。别把生产流程 pin 在某个早期 tag 上。
+- **只用于独立测试环境**：避免频繁迭代影响正式工作流。
+- **密钥安全**：API Key 别进仓库；用环境变量或 UI 配置。
+- **关注一手信息**：GitHub Release 与官方文档站是版本演进的可靠来源。
+
+## 总结
+
+DeepSeek Harness 把「让模型真正干活」的那一层彻底开源了。它的杀手锏不是某个花哨功能，而是「一切皆插件」带来的可组装性——你既能一键开箱用，也能拆到螺丝钉级别自己改。对于想深入理解 Agent 架构、或想要一个完全可控的本地编码助手的开发者，dsh 值得现在就开始玩起来。记住：它还在快速迭代，把它当实验室里的趁手工具，而不是生产底座。
+
+"""
+
+# ---------------------------------------------------------------------------
 # 组装文章列表
 # ---------------------------------------------------------------------------
 articles = [
@@ -450,6 +742,34 @@ articles = [
         "likes": 0,
         "isPinned": False,
     },
+    {
+        "id": "cloudflare-guide",
+        "slug": "cloudflare-guide",
+        "title": "Cloudflare 完全指南：从 DNS、CDN 到 Pages、Workers、KV 的实战应用",
+        "excerpt": "从能力版图讲起，系统梳理 Cloudflare 的 DNS/CDN、Pages、Workers、KV/R2/D1、Wrangler，并用一个个人博客的实战说明如何把前台静态页 + 后台 API 一起部署到边缘。",
+        "content": cloudflare_content,
+        "cover": "https://picsum.photos/seed/cloudflare-cover/1200/600",
+        "category": "技术",
+        "tags": ["Cloudflare", "CDN", "Pages", "Workers", "边缘计算", "部署", "Serverless"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
+    {
+        "id": "deepseek-harness-guide",
+        "slug": "deepseek-harness-guide",
+        "title": "DeepSeek Harness (dsh) 使用全攻略：一切皆插件的开源 Agent 框架",
+        "excerpt": "DeepSeek 于 2026-08-13 开源的 Agent 运行框架 dsh：安装启动、配置 API Key、选择工作区、四种运行模式、插件系统与 headless/SDK 用法，附实战示例与避坑。",
+        "content": dsh_content,
+        "cover": "https://picsum.photos/seed/deepseek-harness-cover/1200/600",
+        "category": "软件",
+        "tags": ["DeepSeek", "Agent", "dsh", "Harness", "开源", "AI", "自动化"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
 ]
 
 # 计算字数与阅读时长
@@ -488,7 +808,7 @@ header = (
     "import type { Article } from '@/types'\n"
     "\n"
     "/**\n"
-    " * 文章数据（重写：DeepSeek 使用+插件、Markdown 编写、Obsidian 使用+插件）\n"
+    " * 文章数据（DeepSeek 使用+插件、Markdown 编写、Obsidian 使用+插件、Cloudflare 指南、DeepSeek Harness 指南）\n"
     " * 首页列表与详情页共用此数据源\n"
     " * id 使用 slug，保证 /article/:id 路由对齐\n"
     " */\n"
