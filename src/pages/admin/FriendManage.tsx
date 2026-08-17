@@ -452,8 +452,8 @@ export default function FriendManage() {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-white/10 bg-[#12101a] p-6 shadow-2xl"
-            style={{ maxHeight: '85vh', overflowY: 'auto' }}
+            className="fixed left-1/2 z-50 w-full max-w-lg -translate-x-1/2 rounded-2xl border border-white/10 bg-[#12101a] p-6 shadow-2xl"
+            style={{ top: '24px', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' }}
           >
             <div className="mb-5 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">{isEditing ? '编辑友链' : '添加友链'}</h3>
@@ -540,8 +540,8 @@ export default function FriendManage() {
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-full max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-white/10 bg-[#12101a] p-6 shadow-2xl"
-            style={{ maxHeight: '85vh', overflowY: 'auto' }}
+            className="fixed left-1/2 z-50 w-full max-w-sm -translate-x-1/2 rounded-2xl border border-white/10 bg-[#12101a] p-6 shadow-2xl"
+            style={{ top: '24px', maxHeight: 'calc(100vh - 48px)', overflowY: 'auto' }}
           >
             <h3 className="text-lg font-semibold text-white">删除友链</h3>
             <p className="mt-2 text-sm text-white/50">确定要删除这条友链吗？删除后前台将立即不再展示。</p>
