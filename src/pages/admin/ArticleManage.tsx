@@ -8,6 +8,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { CodeBlock } from '@/components/home/CodeBlockEnhance'
+import { ARTICLES, broadcastArticleCacheInvalidation } from '@/data/articles'
+import { RefreshCw } from 'lucide-react'
 
 /** 后台文章条目 */
 interface ArticleItem {
@@ -71,10 +73,29 @@ export default function ArticleManage() {
     try {
       const { list } = await adminApi.listArticles()
       setArticles(list as ArticleItem[])
+      // 存储为空时自动导入内置静态文章，让后台能直接管理已有内容
+      if ((list as any[]).length === 0) {
+        try {
+          await adminApi.importSeed('articles', ARTICLES as any[])
+          const { list: reloaded } = await adminApi.listArticles()
+          setArticles(reloaded as ArticleItem[])
+        } catch { /* 导入失败静默，用户可点「同步内置数据」 */ }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '加载失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /** 同步内置静态文章到后台存储（幂等：只补充缺失项） */
+  const syncSeed = async () => {
+    try {
+      const { added, total } = await adminApi.importSeed('articles', ARTICLES as any[])
+      showToast(added > 0 ? `已同步 ${added} 篇内置文章（共 ${total} 篇）` : '内置文章已全部在后台（无需同步）')
+      void load()
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '同步失败')
     }
   }
 
@@ -131,6 +152,7 @@ export default function ArticleManage() {
         await adminApi.createArticle(payload)
         showToast('文章已创建')
       }
+      broadcastArticleCacheInvalidation()
       setModalOpen(false)
       void load()
     } catch (err) {
@@ -146,6 +168,7 @@ export default function ArticleManage() {
     try {
       await adminApi.deleteArticle(deleteId)
       showToast('文章已删除')
+      broadcastArticleCacheInvalidation()
       setDeleteId(null)
       void load()
     } catch (err) {
@@ -162,6 +185,7 @@ export default function ArticleManage() {
     try {
       await adminApi.uploadArticleMarkdown(file)
       showToast('文章上传成功')
+      broadcastArticleCacheInvalidation()
       void load()
     } catch (err) {
       showToast(err instanceof Error ? err.message : '上传失败')
@@ -192,6 +216,13 @@ export default function ArticleManage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={syncSeed}
+            title="把内置静态文章同步到后台存储"
+            className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"
+          >
+            <RefreshCw size={16} /> 同步内置数据
+          </button>
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20"

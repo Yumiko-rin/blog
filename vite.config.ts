@@ -75,13 +75,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/music/, ''),
       },
-      // 画廊图片代理：static.hiromu.top/Boke/* → /img/*
-      '/img': {
-        target: 'https://static.hiromu.top/Boke',
-        changeOrigin: true,
-        secure: true,
-        rewrite: (p) => p.replace(/^\/img/, ''),
-      },
+      // 注：不再代理 /img —— 画廊图片位于 public/img/gallery（本地 dev/preview 直接伺服，
+      //     线上 Pages 作为静态资源部署），原 static.hiromu.top 源站已失效（404）。
     },
   },
   preview: {

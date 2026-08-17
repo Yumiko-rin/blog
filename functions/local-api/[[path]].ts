@@ -14,6 +14,9 @@
  * 如果 KV 未绑定，降级返回空数据（前端 localStorage 兜底）。
  */
 
+// 内置种子：KV 为空时自动导入内置静态内容（画廊相册等）
+import { SEED_GALLERY_ALBUMS } from '../seed/gallery'
+
 interface CommentRow {
   id: string
   path: string
@@ -515,16 +518,36 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       })
     }
 
-    /* ===== 公开数据接口：文章 / 说说 / 友链 ===== */
+    /* ===== 公开数据接口：文章 / 说说 / 画廊 / 友链 ===== */
+
+    // 画廊相册列表（从 KV 读取后台发布的相册，前台实时同步；KV 为空时导入内置相册）
+    if (route === '/gallery' && request.method === 'GET') {
+      try {
+        const raw = await kv?.get('admin_gallery')
+        let list = raw ? JSON.parse(raw) : []
+        if (!Array.isArray(list)) list = []
+        if (list.length === 0 && Array.isArray(SEED_GALLERY_ALBUMS) && SEED_GALLERY_ALBUMS.length > 0 && kv) {
+          await kv.put('admin_gallery', JSON.stringify(SEED_GALLERY_ALBUMS))
+          list = SEED_GALLERY_ALBUMS
+        }
+        return json({ list, source: 'kv' })
+      } catch {
+        return json({ list: [], source: 'kv' })
+      }
+    }
 
     // 文章列表（从 KV 读取后台发布的文章）
     if (route === '/articles' && request.method === 'GET') {
       try {
-        const raw = await kv?.get('admin_articles')
+        const [raw, versionRaw] = await Promise.all([
+          kv?.get('admin_articles'),
+          kv?.get('articles_version'),
+        ])
         const list = raw ? JSON.parse(raw) : []
-        return json({ list: Array.isArray(list) ? list : [], source: 'kv' })
+        const version = versionRaw ? Number(versionRaw) : 0
+        return json({ list: Array.isArray(list) ? list : [], version, source: 'kv' })
       } catch {
-        return json({ list: [], source: 'kv' })
+        return json({ list: [], version: 0, source: 'kv' })
       }
     }
 
@@ -539,22 +562,33 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       }
     }
 
-    // 友链列表（静态友链 + KV 中已审批通过的友链申请）
+    // 友链列表（后台友链表：内置种子 + 申请通过 + 手动新增；兼容旧的 approved 申请）
     if (route === '/friends' && request.method === 'GET') {
       try {
-        const raw = await kv?.get('friend_applications')
-        const apps = raw ? JSON.parse(raw) : []
-        const approved = Array.isArray(apps)
-          ? apps.filter((a: any) => a.status === 'approved').map((a: any) => ({
-              id: a.id || `friend-${a.name}`,
-              name: a.name || '',
-              url: a.url || '',
-              avatar: a.avatar || '',
-              description: a.description || '',
-              tag: a.tag || '博客',
-            }))
-          : []
-        return json({ list: approved, source: 'kv' })
+        const raw = await kv?.get('admin_friends')
+        const friendList: any[] = raw ? JSON.parse(raw) : []
+        const list = Array.isArray(friendList) ? friendList : []
+
+        // 兼容旧数据：把 friend_applications 中已批准的申请也并入（去重）
+        const appsRaw = await kv?.get('friend_applications')
+        const apps: any[] = appsRaw ? JSON.parse(appsRaw) : []
+        if (Array.isArray(apps)) {
+          const urls = new Set(list.map((f: any) => f.url))
+          for (const a of apps.filter((x: any) => x.status === 'approved')) {
+            if (a.url && !urls.has(a.url)) {
+              urls.add(a.url)
+              list.push({
+                id: a.id || `friend-${a.name}`,
+                name: a.name || '',
+                url: a.url || '',
+                avatar: a.avatar || '',
+                description: a.description || '',
+                tag: a.tag || '博客',
+              })
+            }
+          }
+        }
+        return json({ list, source: 'kv' })
       } catch {
         return json({ list: [], source: 'kv' })
       }

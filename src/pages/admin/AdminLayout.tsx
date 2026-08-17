@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Link2,
   BarChart3,
+  Camera,
   LogOut,
   Home,
   Menu,
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { to: '/admin/shuoshuo', label: '说说', icon: MessageCircle },
   { to: '/admin/comments', label: '评论', icon: MessageSquare },
   { to: '/admin/friends', label: '友链', icon: Link2 },
+  { to: '/admin/gallery', label: '画廊', icon: Camera },
   { to: '/admin/stats', label: '统计', icon: BarChart3 },
 ]
 
@@ -38,6 +40,7 @@ const titleMap: Record<string, string> = {
   '/admin/shuoshuo': '说说管理',
   '/admin/comments': '评论管理',
   '/admin/friends': '友链管理',
+  '/admin/gallery': '画廊管理',
   '/admin/stats': '访问统计',
 }
 

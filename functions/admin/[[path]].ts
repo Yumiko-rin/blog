@@ -108,6 +108,13 @@ const KV_ARTICLES = 'admin_articles'
 const KV_SHUOSHUO = 'admin_shuoshuo'
 const KV_FRIENDS = 'admin_friends'
 const KV_GALLERY = 'admin_gallery'
+const KV_ARTICLES_VERSION = 'articles_version'
+
+/** 写入文章数据时同步更新版本号（用于前台缓存失效判断） */
+async function kvSetArticles(kv: KVNamespace | undefined, data: unknown): Promise<void> {
+  await kvSet(kv, KV_ARTICLES, data)
+  await kvSet(kv, KV_ARTICLES_VERSION, Date.now())
+}
 
 /** 内置种子映射：对应 KV 为空时自动导入（后台可管理前台已有的静态内容） */
 const SEED_MAP: { key: string; seed: any[] }[] = [
@@ -272,7 +279,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
         updatedAt: new Date().toISOString(),
       }
       articles.unshift(article)
-      await kvSet(adminKv, KV_ARTICLES, articles)
+      await kvSetArticles(adminKv, articles)
       return json({ ok: true, article })
     }
 
@@ -282,7 +289,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
       const idx = articles.findIndex(a => a.id === body.id)
       if (idx < 0) return json({ error: '文章不存在' }, 404)
       articles[idx] = { ...articles[idx], ...body, updatedAt: new Date().toISOString() }
-      await kvSet(adminKv, KV_ARTICLES, articles)
+      await kvSetArticles(adminKv, articles)
       return json({ ok: true, article: articles[idx] })
     }
 
@@ -290,7 +297,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
       const body = await readBody(request)
       const articles = await kvGet<any[]>(adminKv, KV_ARTICLES) || []
       const filtered = articles.filter(a => a.id !== body.id)
-      await kvSet(adminKv, KV_ARTICLES, filtered)
+      await kvSetArticles(adminKv, filtered)
       return json({ ok: true, removed: articles.length - filtered.length })
     }
 
@@ -469,6 +476,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
         added++
       }
       await kvSet(adminKv, cfg.key, list)
+      if (cfg.key === KV_ARTICLES) await kvSet(adminKv, KV_ARTICLES_VERSION, Date.now())
       return json({ ok: true, added, total: list.length })
     }
 
@@ -531,7 +539,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
       } else {
         articles.unshift(article)
       }
-      await kvSet(adminKv, KV_ARTICLES, articles)
+      await kvSetArticles(adminKv, articles)
       return json({ ok: true, article })
     }
 

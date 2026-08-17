@@ -1,0 +1,218 @@
+[
+  {
+    "id": "d-seasir",
+    "name": "Hyde Blog",
+    "url": "https://seasir.top/",
+    "avatar": "https://seasir.top/assets/avatar.avif",
+    "description": "人心中的成见是一座大山",
+    "tag": "博客"
+  },
+  {
+    "id": "d-mistfly",
+    "name": "拾光の博客",
+    "url": "https://blog.mistfly.xyz",
+    "avatar": "https://weavatar.com/api/avatar/ff2a232e034fb7677c9f211c5979619f3f4818302ae2cf2a11ea74af530e7758?s=50&t=1780753762637",
+    "description": "拾取散落的时光碎片",
+    "tag": "博客"
+  },
+  {
+    "id": "d-520781",
+    "name": "年华",
+    "url": "https://blog.520781.xyz",
+    "avatar": "https://q1.qlogo.cn/g?b=qq&nk=1323860289&s=640",
+    "description": "分享生活和技术。",
+    "tag": "博客"
+  },
+  {
+    "id": "d-seln",
+    "name": "mccsjs",
+    "url": "https://blog.seln.cn",
+    "avatar": "https://blog.seln.cn/img/ico.jpg",
+    "description": "点一盏灯，等待一个迷路的夜🍁",
+    "tag": "博客"
+  },
+  {
+    "id": "d-cuteleaf",
+    "name": "夏夜流萤",
+    "url": "https://blog.cuteleaf.cn",
+    "avatar": "https://weavatar.com/avatar/d252655d40d6874417a720bad0a6c5f77f8f6a1fd2f882f8f338402dc37e4190?s=640",
+    "description": "飞萤之火自无梦的长夜亮起，绽放在终竟的明天。",
+    "tag": "博客"
+  },
+  {
+    "id": "d-kejk",
+    "name": "L!!!!ght",
+    "url": "https://sunlight.kejk.cn",
+    "avatar": "https://easyimg.kejk.cn/i/4484873c-c2cc-4b3d-bc35-5c72ed01cfd9.webp",
+    "description": "阳光正好，慢慢前行。",
+    "tag": "博客"
+  },
+  {
+    "id": "d-liushen",
+    "name": "清羽飞扬",
+    "url": "https://blog.liushen.fun/",
+    "avatar": "https://blog.liushen.fun/favicon.ico",
+    "description": "柳影曳曳，清酒孤灯，扬笔撒墨，心境如霜",
+    "tag": "博客"
+  },
+  {
+    "id": "d-yukino",
+    "name": "雨雪冰屋",
+    "url": "https://iamyukino.cn/",
+    "avatar": "https://iamyukino.cn/favicon.ico",
+    "description": "一隅雨雪一炉窝，可能会融化持久堆？",
+    "tag": "博客"
+  },
+  {
+    "id": "d-ericterminal",
+    "name": "Eric-Terminalの博客",
+    "url": "https://blog.ericterminal.com",
+    "avatar": "https://assets.ericterminal.com/logo-transparent.png",
+    "description": "刃は鞘に、心は花に",
+    "tag": "博客"
+  },
+  {
+    "id": "d-nachecko",
+    "name": "Nachecko",
+    "url": "https://tbmiao.dpdns.org/",
+    "avatar": "https://avatars.githubusercontent.com/u/172878250",
+    "description": "Nacheckoの小窝",
+    "tag": "博客"
+  },
+  {
+    "id": "d-sigrika",
+    "name": "Sigrika",
+    "url": "https://sigrika.fans/",
+    "avatar": "https://sigrika.fans/avatar.avif",
+    "description": "海洛耙耙柑批发中~",
+    "tag": "博客"
+  },
+  {
+    "id": "d-mmzhiku",
+    "name": "MmzMingの博客",
+    "url": "https://tblog.mmzhiku.xyz/",
+    "avatar": "https://i.stardots.io/784774835/StarDots-2026052116374135506.jpg",
+    "description": "菲比啾比",
+    "tag": "博客"
+  },
+  {
+    "id": "d-narcssu",
+    "name": "Narcssu Notes",
+    "url": "https://blog.narcssu.top/",
+    "avatar": "https://q1.qlogo.cn/g?b=qq&nk=1928325064&s=640",
+    "description": "这个博客仍在缓慢施工中",
+    "tag": "博客"
+  },
+  {
+    "id": "d-jerry",
+    "name": "JerryLife",
+    "url": "https://jerry-nis.top",
+    "avatar": "https://img.jerry-nis.top/d8703c5c-4c4a-49cc-bd94-3363c9eda2d8.png",
+    "description": "Enjoy life",
+    "tag": "博客"
+  },
+  {
+    "id": "d-tsh520",
+    "name": "团子和蛋糕",
+    "url": "https://blog.tsh520.cn/",
+    "avatar": "https://re.tsh520.cn/zl/tx.webp",
+    "description": "如果你喜欢那么欢迎来到我的世界！",
+    "tag": "博客"
+  },
+  {
+    "id": "d-woodfish",
+    "name": "woodfishの博客",
+    "url": "https://www.woodfish.site/",
+    "avatar": "https://pic1.imgdb.cn/item/682f3d1658cb8da5c807b704.jpg",
+    "description": "是一名 学生 / ACMer / 前端开发 / 电子音乐制作人",
+    "tag": "博客"
+  },
+  {
+    "id": "d-fqzlr",
+    "name": "番茄主理人",
+    "url": "https://fqzlr.com/",
+    "avatar": "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
+    "description": "坐而言不如起而行.",
+    "tag": "博客"
+  },
+  {
+    "id": "d-anheyu",
+    "name": "安知鱼",
+    "url": "https://blog.anheyu.com/",
+    "avatar": "https://npm.elemecdn.com/anzhiyu-blog-static@1.0.4/img/avatar.jpg",
+    "description": "生活明朗，万物可爱",
+    "tag": "博客"
+  },
+  {
+    "id": "d-justpureh2o",
+    "name": "JustPureH2O の博客",
+    "url": "https://justpureh2o.cn",
+    "avatar": "https://justpureh2o.cn/avatar.jpg",
+    "description": "穷方圆平直之情，尽规矩准绳之用",
+    "tag": "博客"
+  },
+  {
+    "id": "d-taozhiyy",
+    "name": "桃之夭夭",
+    "url": "https://taozhiyy.top",
+    "avatar": "https://tzyy-1330068502.cos.ap-beijing.myqcloud.com/1.png",
+    "description": "桃之夭夭的小屋",
+    "tag": "博客"
+  },
+  {
+    "id": "msydjt",
+    "name": "MSYDJT'Blog",
+    "url": "https://msydjt.com",
+    "avatar": "https://static.hiromu.top/Boke/aeb111c6ca1c4ac5bc3bbdaa05137881.png",
+    "description": "MSYDJT-门上一点就通的博客",
+    "tag": "博客"
+  },
+  {
+    "id": "xinghuisama",
+    "name": "XingHuiSamaの宝藏之地",
+    "url": "https://www.xinghuisama.top",
+    "avatar": "https://bu.dusays.com/2026/03/24/69c1e38ac1846.jpg",
+    "description": "今天我也要学习吗",
+    "tag": "博客"
+  },
+  {
+    "id": "starhiro",
+    "name": "Starhiro の 小站",
+    "url": "https://boke.hiromu.top/",
+    "avatar": "https://hiromu520.oss-cn-beijing.aliyuncs.com/Boke/15.jpg",
+    "description": "很高兴与你相遇~",
+    "tag": "博客"
+  },
+  {
+    "id": "anze",
+    "name": "安泽の温馨小窝",
+    "url": "https://anze.love",
+    "avatar": "https://static.hiromu.top/Boke/436c1e53a655493bb0a6137f67699180.jpg",
+    "description": "愿得一人心.",
+    "tag": "博客"
+  },
+  {
+    "id": "tianmiao",
+    "name": "天渺studio",
+    "url": "https://tianmiao.site",
+    "avatar": "https://s21.ax1x.com/2024/12/22/pAXtJat.jpg",
+    "description": "天渺studio的小站&日志记录",
+    "tag": "博客"
+  },
+  {
+    "id": "ringo",
+    "name": "ringo",
+    "url": "https://linqin.pages.dev/",
+    "avatar": "/avatars/friend_ringo.png",
+    "description": "ringo 的个人站点",
+    "tag": "博客"
+  },
+  {
+    "id": "yukina",
+    "name": "yukina",
+    "url": "https://yukina-2006.github.io/",
+    "avatar": "/avatars/friend_yukina.png",
+    "description": "yukina 的个人站点",
+    "tag": "博客"
+  }
+]

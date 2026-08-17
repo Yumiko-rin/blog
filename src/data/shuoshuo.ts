@@ -67,12 +67,11 @@ export async function loadShuoshuo(force = false): Promise<Shuoshuo[]> {
         content: s.content || '',
         images: Array.isArray(s.images) ? s.images : [],
       }))
-      // 合并：KV 说说在前，静态说说在后（去重）
-      const kvIds = new Set(kvList.map(s => s.id))
-      const merged = [...kvList, ...SHUOSHUO.filter(s => !kvIds.has(s.id))]
-      _cachedShuoshuo = merged
+      // 后台数据即唯一数据源（后台存储已包含内置种子说说），
+      // 后台的编辑/删除/新增会实时反映到前台；请求失败才回退静态数据
+      _cachedShuoshuo = kvList
       _cacheTime = Date.now()
-      return merged
+      return kvList
     }
   } catch { /* ignore, fall back to static */ }
   return SHUOSHUO

@@ -33,6 +33,7 @@ const ArticleManage = lazy(() => import('@/pages/admin/ArticleManage'))
 const ShuoshuoManage = lazy(() => import('@/pages/admin/ShuoshuoManage'))
 const CommentManage = lazy(() => import('@/pages/admin/CommentManage'))
 const FriendManage = lazy(() => import('@/pages/admin/FriendManage'))
+const GalleryManage = lazy(() => import('@/pages/admin/GalleryManage'))
 const StatsView = lazy(() => import('@/pages/admin/StatsView'))
 
 /** 空白 fallback — 避免路由切换时出现闪烁 spinner */
@@ -117,6 +118,7 @@ export default function App() {
             <Route path="shuoshuo" element={<ShuoshuoManage />} />
             <Route path="comments" element={<CommentManage />} />
             <Route path="friends" element={<FriendManage />} />
+            <Route path="gallery" element={<GalleryManage />} />
             <Route path="stats" element={<StatsView />} />
           </Route>
         </Routes>

@@ -2,116 +2,17 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Camera, X, ChevronLeft, ChevronRight, RotateCw } from 'lucide-react'
-
-interface Photo {
-  id: string
-  url: string
-  caption: string
-  orientation: 'portrait' | 'landscape'
-}
-
-interface Album {
-  id: number
-  title: string
-  photos: Photo[]
-  updatedAt: string
-}
+import { STATIC_ALBUMS, type GalleryAlbum as Album, type GalleryPhoto as Photo } from '@/data/gallery'
 
 /**
- * 生成本地画廊图片 URL
- * 每个相册 8 张照片，对应 album{id}_1.jpg ~ album{id}_8.jpg
+ * 生成画廊图片 URL：优先使用照片自带的 url（后台管理添加的相册）；
+ * 兜底按 album{id}_1.jpg ~ album{id}_8.jpg 映射静态图片
  */
-const IMAGES_PER_ALBUM = 8
-
 function getPhotoUrl(photo: Photo): string {
-  for (const album of ALBUMS) {
-    const idx = album.photos.findIndex(p => p.id === photo.id)
-    if (idx !== -1) {
-      const imageNum = (idx % IMAGES_PER_ALBUM) + 1
-      return `/img/gallery/album${album.id}_${imageNum}.jpg?v=7`
-    }
-  }
-  return '/img/gallery/album2_1.jpg?v=7'
+  if (photo.url) return photo.url
+  const imgNum = (parseInt(photo.id.replace(/\D/g, ''), 10) % 8) + 1
+  return `/img/gallery/album2_${imgNum}.jpg?v=7`
 }
-
-// ========== 相册数据 ==========
-const ALBUMS: Album[] = [
-  {
-    id: 2,
-    title: '风景写真',
-    updatedAt: '2026-05-26',
-    photos: [
-      { id: 'p1', url: '', caption: '山间晨雾', orientation: 'portrait' },
-      { id: 'p2', url: '', caption: '湖畔夕照', orientation: 'portrait' },
-      { id: 'p3', url: '', caption: '林间小径', orientation: 'portrait' },
-      { id: 'p4', url: '', caption: '云海翻涌', orientation: 'portrait' },
-      { id: 'p5', url: '', caption: '花田漫步', orientation: 'portrait' },
-      { id: 'p6', url: '', caption: '溪水潺潺', orientation: 'portrait' },
-      { id: 'p7', url: '', caption: '远山如黛', orientation: 'portrait' },
-      { id: 'p8', url: '', caption: '星空露营', orientation: 'portrait' },
-    ],
-  },
-  {
-    id: 3,
-    title: '日常记录',
-    updatedAt: '2026-05-08',
-    photos: [
-      { id: 'p9', url: '', caption: '午后咖啡', orientation: 'landscape' },
-      { id: 'p10', url: '', caption: '街角偶遇', orientation: 'landscape' },
-      { id: 'p11', url: '', caption: '窗边读书', orientation: 'landscape' },
-      { id: 'p12', url: '', caption: '雨后初晴', orientation: 'landscape' },
-      { id: 'p13', url: '', caption: '厨房时光', orientation: 'landscape' },
-      { id: 'p14', url: '', caption: '黄昏散步', orientation: 'landscape' },
-      { id: 'p15', url: '', caption: '周末集市', orientation: 'landscape' },
-      { id: 'p16', url: '', caption: '夜深人静', orientation: 'landscape' },
-    ],
-  },
-  {
-    id: 4,
-    title: '旅行足迹',
-    updatedAt: '2026-05-10',
-    photos: [
-      { id: 'p17', url: '', caption: '古镇晨曦', orientation: 'landscape' },
-      { id: 'p18', url: '', caption: '海边日落', orientation: 'landscape' },
-      { id: 'p19', url: '', caption: '山城夜景', orientation: 'landscape' },
-      { id: 'p20', url: '', caption: '田园风光', orientation: 'landscape' },
-      { id: 'p21', url: '', caption: '寺院钟声', orientation: 'landscape' },
-      { id: 'p22', url: '', caption: '雪山远眺', orientation: 'landscape' },
-      { id: 'p23', url: '', caption: '渔港黄昏', orientation: 'landscape' },
-      { id: 'p24', url: '', caption: '荒野公路', orientation: 'landscape' },
-    ],
-  },
-  {
-    id: 5,
-    title: '季节物语',
-    updatedAt: '2026-08-15',
-    photos: [
-      { id: 'p25', url: '', caption: '春樱初绽', orientation: 'landscape' },
-      { id: 'p26', url: '', caption: '夏空万里', orientation: 'portrait' },
-      { id: 'p27', url: '', caption: '秋叶静美', orientation: 'portrait' },
-      { id: 'p28', url: '', caption: '冬雪皑皑', orientation: 'portrait' },
-      { id: 'p29', url: '', caption: '花火大会', orientation: 'landscape' },
-      { id: 'p30', url: '', caption: '星空之下', orientation: 'portrait' },
-      { id: 'p31', url: '', caption: '夕阳无限', orientation: 'portrait' },
-      { id: 'p32', url: '', caption: '朝雾微凉', orientation: 'portrait' },
-    ],
-  },
-  {
-    id: 6,
-    title: '城市印象',
-    updatedAt: '2026-08-15',
-    photos: [
-      { id: 'p33', url: '', caption: '霓虹闪烁', orientation: 'portrait' },
-      { id: 'p34', url: '', caption: '都市黄昏', orientation: 'landscape' },
-      { id: 'p35', url: '', caption: '街角一隅', orientation: 'landscape' },
-      { id: 'p36', url: '', caption: '高楼林立', orientation: 'landscape' },
-      { id: 'p37', url: '', caption: '雨夜街灯', orientation: 'landscape' },
-      { id: 'p38', url: '', caption: '夕阳余晖', orientation: 'portrait' },
-      { id: 'p39', url: '', caption: '建筑之美', orientation: 'portrait' },
-      { id: 'p40', url: '', caption: '繁华尽头', orientation: 'landscape' },
-    ],
-  },
-]
 
 // ========== 照片卡片（拍立得风格，与原站一致）==========
 
@@ -447,11 +348,55 @@ function Lightbox({ photos, currentIndex, isOpen, onClose, onPrev, onNext }: {
 // ========== 主页面 ==========
 export default function Gallery() {
   const navigate = useNavigate()
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | string | null>(null)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [currentPhotos, setCurrentPhotos] = useState<Photo[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const expandedRef = useRef<HTMLDivElement>(null)
+
+  // 后台发布的相册（实时同步：本地 /local-api/gallery，线上 /gallery）
+  const [remoteAlbums, setRemoteAlbums] = useState<Album[]>([])
+  const [remoteAvailable, setRemoteAvailable] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const loadRemoteAlbums = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true)
+    try {
+      for (const path of ['/local-api/gallery', '/gallery']) {
+        try {
+          const res = await fetch(path, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+          if (!res.ok) continue
+          const data = await res.json()
+          if (data && Array.isArray(data.list)) {
+            setRemoteAlbums(data.list as Album[])
+            setRemoteAvailable(true)
+            break
+          }
+        } catch {
+          /* 尝试下一个数据源 */
+        }
+      }
+    } finally {
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRemoteAlbums()
+    // 切回本标签页时自动刷新（后台发布后无需手动刷新即可看到最新相册）
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadRemoteAlbums(true)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loadRemoteAlbums])
+
+  // 后台有相册 → 只展示后台数据（后台管理 = 前台展示，删除立即生效）；
+  // 后端不可用时才回退内置静态相册
+  const sortedAlbums = useMemo(() => {
+    const source = remoteAvailable ? remoteAlbums : STATIC_ALBUMS
+    return [...source].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }, [remoteAlbums, remoteAvailable])
 
   // 点击相册外部时收起已展开的相册
   useEffect(() => {
@@ -471,11 +416,6 @@ export default function Gallery() {
     setCurrentIndex(index)
     setLightboxOpen(true)
   }
-
-  const sortedAlbums = useMemo(
-    () => [...ALBUMS].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
-    []
-  )
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12">
@@ -504,40 +444,59 @@ export default function Gallery() {
           </button>
           <Camera className="w-5 h-5 md:w-7 md:h-7 text-sky-500" />
           <h1 className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">照片墙</h1>
+          {remoteAvailable && (
+            <button type="button"
+              onClick={() => loadRemoteAlbums()}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium
+                bg-[rgb(var(--bg-secondary))] text-[rgb(var(--text-secondary))]
+                hover:bg-accent/10 hover:text-accent transition-all"
+              aria-label="刷新相册">
+              <RotateCw size={14} className={refreshing ? 'animate-spin' : ''} /> 刷新
+            </button>
+          )}
         </div>
         <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 ml-7 md:ml-10">
           用照片记录生活的每一个瞬间
         </p>
       </motion.div>
 
-      {/* 相册网格 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 select-none">
-        {sortedAlbums.map((album, albumIndex) => {
-          const isExpanded = expandedId === album.id
-          const isHidden = expandedId !== null && !isExpanded
-          if (isHidden) return null
+      {/* 空状态：后台已启用但还没有相册 */}
+      {remoteAvailable && sortedAlbums.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 py-20 text-center">
+          <Camera className="w-14 h-14 text-slate-300 dark:text-slate-600" />
+          <p className="mt-4 text-slate-500 dark:text-slate-400">还没有相册</p>
+          <p className="mt-1 text-sm text-slate-400 dark:text-slate-500">去后台「画廊管理」新建相册，或添加照片 URL 吧</p>
+        </div>
+      ) : (
+        /* 相册网格 */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 select-none">
+          {sortedAlbums.map((album, albumIndex) => {
+            const isExpanded = expandedId === album.id
+            const isHidden = expandedId !== null && !isExpanded
+            if (isHidden) return null
 
-          return (
-            <motion.div
-              key={album.id}
-              layout
-              initial={expandedId === null ? { opacity: 0, y: 20 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: expandedId === null ? Math.min(albumIndex * 0.08, 0.4) : 0 }}
-              className={isExpanded ? 'sm:col-span-2 lg:col-span-3' : ''}
-            >
-              <div ref={isExpanded ? expandedRef : undefined}>
-                <AlbumCard
-                  album={album}
-                  isExpanded={isExpanded}
-                  onToggle={() => setExpandedId((prev) => (prev === album.id ? null : album.id))}
-                  onPhotoClick={openLightbox}
-                />
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
+            return (
+              <motion.div
+                key={album.id}
+                layout
+                initial={expandedId === null ? { opacity: 0, y: 20 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: expandedId === null ? Math.min(albumIndex * 0.08, 0.4) : 0 }}
+                className={isExpanded ? 'sm:col-span-2 lg:col-span-3' : ''}
+              >
+                <div ref={isExpanded ? expandedRef : undefined}>
+                  <AlbumCard
+                    album={album}
+                    isExpanded={isExpanded}
+                    onToggle={() => setExpandedId((prev) => (prev === album.id ? null : album.id))}
+                    onPhotoClick={openLightbox}
+                  />
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
 
       {/* 灯箱 */}
       <Lightbox

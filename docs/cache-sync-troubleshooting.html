@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>缓存清理与数据同步排查方案</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg-card: #1e293b;
+    --bg-code: #0d1117;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-warm: #fbbf24;
+    --danger: #f87171;
+    --success: #4ade80;
+    --border: #334155;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0;
+  }
+  .hero {
+    position: relative;
+    height: 280px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+  }
+  .hero img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.3;
+  }
+  .hero-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2rem;
+  }
+  .hero h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+  .hero p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  h2 .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: var(--accent);
+  }
+  p { margin-bottom: 0.75rem; }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card-danger {
+    border-left: 4px solid var(--danger);
+  }
+  .card-success {
+    border-left: 4px solid var(--success);
+  }
+  .card-warning {
+    border-left: 4px solid var(--accent-warm);
+  }
+  .card-info {
+    border-left: 4px solid var(--accent);
+  }
+  .card-title {
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--accent);
+  }
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    margin: 0.75rem 0 1rem;
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: #c9d1d9;
+  }
+  .comment { color: #8b949e; }
+  .keyword { color: #ff7b72; }
+  .string { color: #a5d6ff; }
+  .function { color: #d2a8ff; }
+  .number { color: #79c0ff; }
+  .type { color: #ffa657; }
+  ul, ol {
+    margin-left: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  li { margin-bottom: 0.35rem; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  .badge-danger { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .badge-success { background: rgba(74,222,128,0.15); color: var(--success); }
+  .badge-warning { background: rgba(251,191,36,0.15); color: var(--accent-warm); }
+  .badge-info { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .checklist {
+    list-style: none;
+    margin-left: 0;
+  }
+  .checklist li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(51,65,85,0.5);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .check-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .check-yes { background: rgba(74,222,128,0.2); color: var(--success); }
+  .check-no { background: rgba(248,113,113,0.2); color: var(--danger); }
+  .check-warn { background: rgba(251,191,36,0.2); color: var(--accent-warm); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0 1rem;
+    font-size: 0.85rem;
+  }
+  th, td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border: 1px solid var(--border);
+  }
+  th {
+    background: rgba(56,189,248,0.08);
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+  td code { font-size: 0.8rem; }
+  .step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #38bdf8, #818cf8);
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .step-content {
+    flex: 1;
+  }
+  .flow-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1rem 0;
+  }
+  .flow-node {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+    text-align: center;
+    position: relative;
+  }
+  .flow-node.highlight {
+    border-color: var(--danger);
+    background: rgba(248,113,113,0.08);
+  }
+  .flow-arrow {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    margin-right: 0.3rem;
+  }
+  .tag-api { background: rgba(168,85,247,0.15); color: #c084fc; }
+  .tag-cache { background: rgba(251,191,36,0.15); color: var(--accent-warm); }
+  .tag-fixed { background: rgba(74,222,128,0.15); color: var(--success); }
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    color: var(--accent);
+  }
+  .toc ol {
+    margin-left: 1.2rem;
+    font-size: 0.85rem;
+  }
+  .toc a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--accent); }
+  .summary-box {
+    background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(129,140,248,0.08));
+    border: 1px solid rgba(56,189,248,0.2);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .file-path {
+    color: var(--accent-warm);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.82rem;
+  }
+  .diff-added {
+    background: rgba(74,222,128,0.1);
+    border-left: 3px solid var(--success);
+    padding-left: 0.75rem;
+    display: block;
+    margin: 2px 0;
+  }
+  .diff-removed {
+    background: rgba(248,113,113,0.1);
+    border-left: 3px solid var(--danger);
+    padding-left: 0.75rem;
+    display: block;
+    margin: 2px 0;
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 1.5rem; }
+    .container { padding: 1rem; }
+    pre { font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <img src="../docs/cache-troubleshooting-hero.jpg" alt="">
+  <div class="hero-content">
+    <h1>缓存清理与数据同步排查方案</h1>
+    <p>后台文章删除后前台仍显示问题的完整诊断与修复报告</p>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- 目录 -->
+<div class="toc">
+  <div class="toc-title">目录</div>
+  <ol>
+    <li><a href="#summary">问题概述与根因摘要</a></li>
+    <li><a href="#diagnosis">分层诊断：三层缓存问题定位</a></li>
+    <li><a href="#check-delete">排查一：后台删除操作是否真正提交到 KV</a></li>
+    <li><a href="#check-cache">排查二：前台数据是否来自缓存而未刷新</a></li>
+    <li><a href="#check-cron">排查三：定时任务与搜索引擎索引</a></li>
+    <li><a href="#fix-steps">强制刷新前台与清除缓存的具体步骤</a></li>
+    <li><a href="#verify">验证前后台数据一致性</a></li>
+    <li><a href="#code-fixes">已实施的代码层修复（6 个文件）</a></li>
+    <li><a href="#config-suggestions">配置层优化建议</a></li>
+    <li><a href="#recurrence">防止复发的长期保障机制</a></li>
+  </ol>
+</div>
+
+<!-- ==================== 1. 问题概述 ==================== -->
+<h2 id="summary">
+  <span class="icon" style="background:rgba(56,189,248,0.15);color:var(--accent);">01</span>
+  问题概述与根因摘要
+</h2>
+
+<div class="summary-box">
+  <p><strong>现象：</strong>后台管理页面删除文章后，前台首页和文章详情页仍然显示已被删除的文章。</p>
+  <p><strong>根因：</strong>经代码审查确认，存在 <strong>三层缓存叠加</strong> 导致删除操作无法实时同步到前台：</p>
+</div>
+
+<div class="flow-diagram">
+  <div class="flow-node highlight">
+    <strong>后台删除文章</strong><br>
+    <span style="font-size:0.8rem;color:var(--text-muted);">DELETE /admin/articles → KV.put('admin_articles', filtered)</span>
+  </div>
+  <div class="flow-arrow">↓ KV 最终一致性延迟（~5秒）</div>
+  <div class="flow-node highlight">
+    <strong>层1：Cloudflare 边缘缓存</strong> <span class="badge badge-danger">问题</span><br>
+    <span style="font-size:0.8rem;color:var(--text-muted);"><code>functions/local-api/articles.ts</code> 未设置 Cache-Control 头<br>→ Cloudflare 边缘节点可能缓存旧响应</span>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-node highlight">
+    <strong>层2：前端内存缓存（5分钟TTL）</strong> <span class="badge badge-danger">问题</span><br>
+    <span style="font-size:0.8rem;color:var(--text-muted);"><code>src/data/articles.ts</code> 的 <code>_cachedArticles</code> 变量<br>→ 删除后 5 分钟内仍返回旧数据</span>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-node highlight">
+    <strong>层3：浏览器 HTTP 缓存</strong> <span class="badge badge-warning">部分问题</span><br>
+    <span style="font-size:0.8rem;color:var(--text-muted);">fetch 未指定 <code>cache: 'no-store'</code><br>→ 浏览器可能使用磁盘缓存</span>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-node">
+    <strong>前台展示已删除文章</strong> ❌
+  </div>
+</div>
+
+<!-- ==================== 2. 分层诊断 ==================== -->
+<h2 id="diagnosis">
+  <span class="icon" style="background:rgba(168,85,247,0.15);color:#c084fc;">02</span>
+  分层诊断：三层缓存问题定位
+</h2>
+
+<h3>缓存层级全景表</h3>
+
+<table>
+  <tr>
+    <th>缓存层</th>
+    <th>位置</th>
+    <th>TTL</th>
+    <th>删除后是否失效</th>
+    <th>状态</th>
+  </tr>
+  <tr>
+    <td>Cloudflare KV</td>
+    <td><code>admin_articles</code> 键</td>
+    <td>持久</td>
+    <td>是（立即写入）</td>
+    <td><span class="badge badge-success">正常</span></td>
+  </tr>
+  <tr>
+    <td>Cloudflare 边缘缓存</td>
+    <td><code>/local-api/articles</code> 响应</td>
+    <td>未设置（不确定）</td>
+    <td><strong>否</strong></td>
+    <td><span class="badge badge-danger">已修复</span></td>
+  </tr>
+  <tr>
+    <td>前端内存缓存</td>
+    <td><code>_cachedArticles</code> 模块变量</td>
+    <td>5 分钟</td>
+    <td><strong>否</strong></td>
+    <td><span class="badge badge-danger">已修复</span></td>
+  </tr>
+  <tr>
+    <td>浏览器 HTTP 缓存</td>
+    <td>fetch 默认行为</td>
+    <td>不确定</td>
+    <td><strong>否</strong></td>
+    <td><span class="badge badge-danger">已修复</span></td>
+  </tr>
+  <tr>
+    <td>Service Worker / PWA</td>
+    <td>—</td>
+    <td>—</td>
+    <td>N/A</td>
+    <td><span class="badge badge-success">不存在</span></td>
+  </tr>
+  <tr>
+    <td>localStorage 文章缓存</td>
+    <td>—</td>
+    <td>—</td>
+    <td>N/A</td>
+    <td><span class="badge badge-success">不存在</span></td>
+  </tr>
+  <tr>
+    <td>定时任务 / Cron</td>
+    <td>—</td>
+    <td>—</td>
+    <td>N/A</td>
+    <td><span class="badge badge-success">不存在</span></td>
+  </tr>
+  <tr>
+    <td>搜索引擎索引</td>
+    <td>外部（Google/Bing）</td>
+    <td>数天~数周</td>
+    <td>需手动提交</td>
+    <td><span class="badge badge-warning">需关注</span></td>
+  </tr>
+</table>
+
+<!-- ==================== 3. 排查一 ==================== -->
+<h2 id="check-delete">
+  <span class="icon" style="background:rgba(74,222,128,0.15);color:var(--success);">03</span>
+  排查一：后台删除操作是否真正提交到 KV
+</h2>
+
+<div class="card card-success">
+  <div class="card-title">结论：删除操作已正确写入 KV <span class="badge badge-success">确认正常</span></div>
+  <p>后台删除逻辑位于 <span class="file-path">functions/admin/[[path]].ts</span> 第 296-302 行，代码流程为：</p>
+  <ol>
+    <li>从 KV 读取 <code>admin_articles</code> 完整数组</li>
+    <li>使用 <code>filter(a =&gt; a.id !== body.id)</code> 过滤掉目标文章</li>
+    <li>调用 <code>kvSetArticles()</code> 写回 KV（现已同步更新版本号）</li>
+    <li>返回 <code>{ ok: true, removed: N }</code></li>
+  </ol>
+  <p><strong>验证方法：</strong>在后台删除文章后，立即在浏览器控制台执行：</p>
+  <pre><code><span class="comment">// 直接调用公开 API 验证 KV 数据</span>
+fetch(<span class="string">'/local-api/articles'</span>, { cache: <span class="string">'no-store'</span> })
+  .then(r =&gt; r.json())
+  .then(d =&gt; {
+    console.log(<span class="string">'文章总数:'</span>, d.list.length)
+    console.log(<span class="string">'版本号:'</span>, d.version)
+    console.log(<span class="string">'是否包含已删除文章:'</span>, d.list.some(a =&gt; a.id === <span class="string">'被删除的文章ID'</span>))
+  })</code></pre>
+  <p>如果返回结果中不包含已删除文章，说明 KV 层面数据已正确更新。</p>
+</div>
+
+<div class="card card-info">
+  <div class="card-title">KV 最终一致性说明</div>
+  <p>Cloudflare KV 写入后存在约 <strong>5 秒</strong>的最终一致性延迟。即 <code>kv.put()</code> 返回后，不同边缘节点读取到的数据可能仍然是旧值。这是 Cloudflare KV 的已知行为，非 Bug。</p>
+  <p><strong>影响：</strong>删除后 5 秒内的请求可能读到旧数据，这是可接受的短暂窗口。</p>
+</div>
+
+<!-- ==================== 4. 排查二 ==================== -->
+<h2 id="check-cache">
+  <span class="icon" style="background:rgba(251,191,36,0.15);color:var(--accent-warm);">04</span>
+  排查二：前台数据是否来自缓存而未刷新
+</h2>
+
+<h3>层 1：Cloudflare 边缘缓存 <span class="badge badge-danger">根因之一</span></h3>
+
+<div class="card card-danger">
+  <div class="card-title">问题：独立文章端点缺失 Cache-Control 头</div>
+  <p><span class="file-path">functions/local-api/articles.ts</span> 的响应只设置了 <code>content-type</code>，<strong>没有设置 <code>Cache-Control</code> 头</strong>。这意味着 Cloudflare 边缘节点的缓存行为是不确定的——可能缓存，也可能不缓存，取决于 Cloudflare 的默认策略。</p>
+  <p>对比之下，<span class="file-path">functions/local-api/[[path]].ts</span> 中的 <code>json()</code> 辅助函数<strong>已设置</strong> <code>Cache-Control: no-store</code>，但前端的 <code>fetch('/local-api/articles')</code> 命中的是独立文件端点（Cloudflare Pages 路由优先级：精确匹配 &gt; 通配匹配）。</p>
+</div>
+
+<h3>层 2：前端内存缓存 <span class="badge badge-danger">根因之二</span></h3>
+
+<div class="card card-danger">
+  <div class="card-title">问题：5 分钟内存缓存无失效机制</div>
+  <p><span class="file-path">src/data/articles.ts</span> 第 189-191 行定义了模块级缓存变量：</p>
+  <pre><code><span class="keyword">let</span> _cachedArticles: <span class="type">Article</span>[] | <span class="keyword">null</span> = <span class="keyword">null</span>
+<span class="keyword">let</span> _cacheTime = <span class="number">0</span>
+<span class="keyword">const</span> CACHE_MS = <span class="number">5</span> * <span class="number">60</span> * <span class="number">1000</span> <span class="comment">// 5 分钟</span></code></pre>
+  <p><code>loadArticles()</code> 在 5 分钟内直接返回 <code>_cachedArticles</code>，不会重新发起网络请求。后台删除文章后，前台的内存缓存完全不知道数据已变更，会继续返回包含已删除文章的旧数据。</p>
+  <p><strong>关键设计缺陷：</strong>后台管理页面调用的是 <code>/admin/articles</code>（管理端点），前台调用的是 <code>/local-api/articles</code>（公开端点），两者使用不同的数据通道，后台的增删改操作不会通知前台缓存失效。</p>
+</div>
+
+<h3>层 3：浏览器 HTTP 缓存 <span class="badge badge-warning">次要因素</span></h3>
+
+<div class="card card-warning">
+  <div class="card-title">问题：fetch 未禁用浏览器缓存</div>
+  <p>原始代码 <code>fetch('/local-api/articles')</code> 未指定 <code>cache: 'no-store'</code> 选项，浏览器可能根据启发式规则使用磁盘缓存。</p>
+</div>
+
+<!-- ==================== 5. 排查三 ==================== -->
+<h2 id="check-cron">
+  <span class="icon" style="background:rgba(168,85,247,0.15);color:#c084fc;">05</span>
+  排查三：定时任务与搜索引擎索引
+</h2>
+
+<div class="card card-success">
+  <div class="card-title">定时任务 / Cron <span class="badge badge-success">不存在</span></div>
+  <p>经检查 <code>wrangler.toml</code> 配置文件，<strong>没有 <code>[triggers]</code> 或 <code>crons</code> 配置</strong>，没有任何 Pages Function 使用 <code>scheduled</code> 处理器。因此不存在定时任务导致数据不同步的问题。</p>
+  <p>前端存在客户端轮询（<code>useDailyTick</code> 每 30 秒检查日期变更），但这仅用于跨午夜刷新访问统计，与文章数据无关。</p>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title">搜索引擎索引 <span class="badge badge-warning">需手动处理</span></div>
+  <p>搜索引擎（Google、Bing、百度）的爬虫索引可能已收录被删除文章的 URL。用户通过搜索引擎点击进入时，会访问到已不存在的文章页面。</p>
+  <p><strong>处理步骤：</strong></p>
+  <ul>
+    <li>在 <span class="file-path">public/robots.txt</span> 中配置爬虫规则</li>
+    <li>Google Search Console 提交移除请求</li>
+    <li>确保文章详情页对 404 情况有友好提示（当前代码在 <code>loadArticleBySlug</code> 返回 null 时会显示静态兜底文章，应改为显示"文章不存在"提示）</li>
+  </ul>
+</div>
+
+<!-- ==================== 6. 修复步骤 ==================== -->
+<h2 id="fix-steps">
+  <span class="icon" style="background:rgba(56,189,248,0.15);color:var(--accent);">06</span>
+  强制刷新前台与清除缓存的具体步骤
+</h2>
+
+<h3>即时处理（用户侧操作）</h3>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <strong>硬刷新前台页面</strong>
+    <p>在浏览器中按 <code>Ctrl + Shift + R</code>（Windows）或 <code>Cmd + Shift + R</code>（Mac）进行硬刷新，绕过浏览器缓存。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <strong>清除浏览器缓存</strong>
+    <p>打开 DevTools（F12）→ Network 标签 → 勾选 <code>Disable cache</code>，然后刷新页面。或通过 Application → Storage → Clear site data。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <strong>清除 Cloudflare 边缘缓存</strong>
+    <p>登录 Cloudflare Dashboard → Caching → Configuration → <code>Purge Everything</code>（或使用 API）：</p>
+    <pre><code><span class="comment"># 通过 Cloudflare API 清除指定 URL 缓存</span>
+curl -X POST <span class="string">"https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache"</span> \
+  -H <span class="string">"Authorization: Bearer {api_token}"</span> \
+  -H <span class="string">"Content-Type: application/json"</span> \
+  --data <span class="string">'{"files":["https://yourdomain.com/local-api/articles"]}'</span></code></pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <strong>重新部署 Pages</strong>
+    <p>在 Cloudflare Dashboard → Pages → 对应项目 → Deployments → <code>Retry deployment</code>，确保最新的 Functions 代码生效。</p>
+  </div>
+</div>
+
+<h3>长期机制（已通过代码修复实现）</h3>
+
+<div class="card card-success">
+  <div class="card-title">已自动生效的修复</div>
+  <ul class="checklist">
+    <li><span class="check-icon check-yes">✓</span> <code>/local-api/articles</code> 响应头已添加 <code>Cache-Control: no-store</code>，Cloudflare 边缘不再缓存</li>
+    <li><span class="check-icon check-yes">✓</span> 前端 <code>fetch</code> 已添加 <code>{ cache: 'no-store' }</code>，浏览器不再使用磁盘缓存</li>
+    <li><span class="check-icon check-yes">✓</span> 内存缓存 TTL 从 5 分钟缩短到 30 秒</li>
+    <li><span class="check-icon check-yes">✓</span> 新增版本号机制：<code>articles_version</code> KV 键，增删改时自动更新</li>
+    <li><span class="check-icon check-yes">✓</span> 前端通过版本号比对自动失效内存缓存</li>
+    <li><span class="check-icon check-yes">✓</span> 后台增删改后调用 <code>broadcastArticleCacheInvalidation()</code>，同标签页立即清缓存，跨标签页通过 <code>storage</code> 事件广播</li>
+  </ul>
+</div>
+
+<!-- ==================== 7. 验证 ==================== -->
+<h2 id="verify">
+  <span class="icon" style="background:rgba(74,222,128,0.15);color:var(--success);">07</span>
+  验证前后台数据一致性
+</h2>
+
+<h3>验证流程</h3>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-content">
+    <strong>在后台删除一篇测试文章</strong>
+    <p>记录被删除文章的 <code>id</code>（如 <code>test-article-001</code>）。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-content">
+    <strong>等待 5-10 秒（KV 最终一致性窗口）</strong>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-content">
+    <strong>在浏览器控制台验证 KV 数据</strong>
+    <pre><code><span class="comment">// 验证公开 API 是否已不包含被删除文章</span>
+<span class="keyword">const</span> res = <span class="keyword">await</span> fetch(<span class="string">'/local-api/articles'</span>, { cache: <span class="string">'no-store'</span> })
+<span class="keyword">const</span> data = <span class="keyword">await</span> res.json()
+<span class="keyword">const</span> deleted = data.list.find(a =&gt; a.id === <span class="string">'test-article-001'</span>)
+console.log(<span class="string">'版本号:'</span>, data.version)
+console.log(<span class="string">'已删除文章是否仍存在:'</span>, !!deleted)  <span class="comment">// 应为 false</span>
+console.log(<span class="string">'文章总数:'</span>, data.list.length)</code></pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">4</div>
+  <div class="step-content">
+    <strong>验证前台页面展示</strong>
+    <p>打开新标签页访问前台首页，确认已删除的文章不再出现在文章列表中。</p>
+    <p>直接访问已删除文章的 URL（如 <code>/article/test-article-001</code>），确认不再显示该文章内容。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">5</div>
+  <div class="step-content">
+    <strong>跨标签页验证</strong>
+    <p>在标签页 A 打开前台首页 → 在标签页 B 打开后台删除文章 → 回到标签页 A 刷新页面 → 确认已删除文章不再显示。</p>
+  </div>
+</div>
+
+<h3>自动化验证脚本</h3>
+
+<pre><code><span class="comment">// 在浏览器控制台执行的完整验证脚本</span>
+<span class="keyword">async function</span> <span class="function">verifySync</span>(articleId) {
+  console.log(<span class="string">'=== 开始数据一致性验证 ==='</span>)
+
+  <span class="comment">// 1. 后台数据</span>
+  <span class="keyword">const</span> adminRes = <span class="keyword">await</span> fetch(<span class="string">'/admin/articles'</span>, {
+    headers: { <span class="string">'Authorization'</span>: <span class="string">'Bearer '</span> + localStorage.getItem(<span class="string">'admin_token'</span>) }
+  })
+  <span class="keyword">const</span> adminData = <span class="keyword">await</span> adminRes.json()
+  <span class="keyword">const</span> adminHas = adminData.list.some(a =&gt; a.id === articleId)
+
+  <span class="comment">// 2. 公开 API 数据</span>
+  <span class="keyword">const</span> publicRes = <span class="keyword">await</span> fetch(<span class="string">'/local-api/articles'</span>, { cache: <span class="string">'no-store'</span> })
+  <span class="keyword">const</span> publicData = <span class="keyword">await</span> publicRes.json()
+  <span class="keyword">const</span> publicHas = publicData.list.some(a =&gt; a.id === articleId)
+
+  console.log(<span class="string">'后台 KV 数据:'</span>, adminHas ? <span class="string">'❌ 仍包含'</span> : <span class="string">'✅ 已删除'</span>)
+  console.log(<span class="string">'公开 API 数据:'</span>, publicHas ? <span class="string">'❌ 仍包含'</span> : <span class="string">'✅ 已删除'</span>)
+  console.log(<span class="string">'版本号:'</span>, publicData.version)
+  console.log(adminHas === publicHas ? <span class="string">'✅ 前后台一致'</span> : <span class="string">'⚠️ 前后台不一致（等待 KV 同步）'</span>)
+}
+<span class="function">verifySync</span>(<span class="string">'被删除的文章ID'</span>)</code></pre>
+
+<!-- ==================== 8. 代码修复 ==================== -->
+<h2 id="code-fixes">
+  <span class="icon" style="background:rgba(74,222,128,0.15);color:var(--success);">08</span>
+  已实施的代码层修复（6 个文件）
+</h2>
+
+<h3>修复 1：公开文章端点添加缓存禁止头 <span class="tag tag-cache">缓存</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">functions/local-api/articles.ts</span></p>
+<pre><code><span class="comment">// 修复前：没有 Cache-Control 头</span>
+<span class="keyword">return new</span> <span class="type">Response</span>(<span class="type">JSON</span>.stringify({ list: articles }), {
+  headers: { <span class="string">'content-type'</span>: <span class="string">'application/json'</span> },
+})
+
+<span class="comment">// 修复后：禁止所有缓存层缓存</span>
+<span class="keyword">const</span> headers = {
+  <span class="string">'content-type'</span>: <span class="string">'application/json; charset=utf-8'</span>,
+  <span class="string">'Cache-Control'</span>: <span class="string">'no-store, no-cache, must-revalidate'</span>,
+}
+<span class="keyword">return new</span> <span class="type">Response</span>(<span class="type">JSON</span>.stringify({ list: articles, version }), { headers })</code></pre>
+
+<h3>修复 2：新增版本号机制 <span class="tag tag-api">API</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">functions/admin/[[path]].ts</span></p>
+<pre><code><span class="comment">// 新增 KV 版本号键</span>
+<span class="keyword">const</span> KV_ARTICLES_VERSION = <span class="string">'articles_version'</span>
+
+<span class="comment">// 封装文章写入：数据 + 版本号同步更新</span>
+<span class="keyword">async function</span> <span class="function">kvSetArticles</span>(kv, data) {
+  <span class="keyword">await</span> <span class="function">kvSet</span>(kv, KV_ARTICLES, data)
+  <span class="keyword">await</span> <span class="function">kvSet</span>(kv, KV_ARTICLES_VERSION, <span class="type">Date</span>.now())
+}
+
+<span class="comment">// 所有文章增删改操作统一使用 kvSetArticles</span>
+<span class="comment">// POST (创建) / PUT (更新) / DELETE (删除) / upload (上传) / seed (导入)</span></code></pre>
+
+<h3>修复 3：前端缓存失效机制 <span class="tag tag-cache">缓存</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">src/data/articles.ts</span></p>
+<pre><code><span class="comment">// 新增：清除内存缓存</span>
+<span class="keyword">export function</span> <span class="function">invalidateArticleCache</span>() {
+  _cachedArticles = <span class="keyword">null</span>
+  _cacheTime = <span class="number">0</span>
+  _cachedVersion = <span class="number">0</span>
+}
+
+<span class="comment">// 新增：广播缓存失效到其他标签页</span>
+<span class="keyword">export function</span> <span class="function">broadcastArticleCacheInvalidation</span>() {
+  <span class="function">invalidateArticleCache</span>()
+  localStorage.setItem(<span class="string">'article-cache-invalidated'</span>, <span class="type">String</span>(<span class="type">Date</span>.now()))
+}
+
+<span class="comment">// 新增：监听跨标签页失效通知</span>
+window.addEventListener(<span class="string">'storage'</span>, (e) =&gt; {
+  <span class="keyword">if</span> (e.key === <span class="string">'article-cache-invalidated'</span>) <span class="function">invalidateArticleCache</span>()
+})
+
+<span class="comment">// 修复：fetch 添加 cache: 'no-store'</span>
+<span class="keyword">const</span> res = <span class="keyword">await</span> fetch(<span class="string">'/local-api/articles'</span>, { cache: <span class="string">'no-store'</span> })
+
+<span class="comment">// 修复：版本号比对自动失效</span>
+<span class="keyword">const</span> serverVersion = data.version || <span class="number">0</span>
+<span class="keyword">if</span> (serverVersion &amp;&amp; serverVersion !== _cachedVersion) {
+  _cachedArticles = <span class="keyword">null</span> <span class="comment">// 版本变化，强制刷新</span>
+}
+
+<span class="comment">// 优化：TTL 从 5 分钟缩短到 30 秒</span>
+<span class="keyword">const</span> CACHE_MS = <span class="number">30</span> * <span class="number">1000</span></code></pre>
+
+<h3>修复 4：后台操作触发缓存失效 <span class="tag tag-api">API</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">src/pages/admin/ArticleManage.tsx</span></p>
+<pre><code><span class="comment">// 在删除、创建、更新、上传操作后调用广播</span>
+<span class="keyword">await</span> adminApi.<span class="function">deleteArticle</span>(deleteId)
+<span class="function">broadcastArticleCacheInvalidation</span>()  <span class="comment">// ← 新增</span>
+<span class="keyword">void</span> <span class="function">load</span>()
+
+<span class="keyword">await</span> adminApi.<span class="function">createArticle</span>(payload)
+<span class="function">broadcastArticleCacheInvalidation</span>()  <span class="comment">// ← 新增</span>
+
+<span class="keyword">await</span> adminApi.<span class="function">updateArticle</span>(payload)
+<span class="function">broadcastArticleCacheInvalidation</span>()  <span class="comment">// ← 新增</span></code></pre>
+
+<h3>修复 5：通配端点同步版本号 <span class="tag tag-api">API</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">functions/local-api/[[path]].ts</span></p>
+<pre><code><span class="comment">// 修复前：只返回文章列表</span>
+<span class="keyword">return</span> <span class="function">json</span>({ list, source: <span class="string">'kv'</span> })
+
+<span class="comment">// 修复后：并行读取版本号并返回</span>
+<span class="keyword">const</span> [raw, versionRaw] = <span class="keyword">await</span> <span class="type">Promise</span>.all([
+  kv?.<span class="function">get</span>(<span class="string">'admin_articles'</span>),
+  kv?.<span class="function">get</span>(<span class="string">'articles_version'</span>),
+])
+<span class="keyword">const</span> version = versionRaw ? <span class="type">Number</span>(versionRaw) : <span class="number">0</span>
+<span class="keyword">return</span> <span class="function">json</span>({ list, version, source: <span class="string">'kv'</span> })</code></pre>
+
+<h3>修复 6：本地开发服务器同步 <span class="tag tag-api">API</span> <span class="tag tag-fixed">已修复</span></h3>
+<p><span class="file-path">server/local-api.cjs</span></p>
+<pre><code><span class="comment">// 新增版本文件路径常量</span>
+<span class="keyword">const</span> ADMIN_ARTICLES_VERSION_FILE = path.join(DATA_DIR, <span class="string">'admin-articles-version.json'</span>)
+
+<span class="comment">// GET /articles 返回版本号</span>
+<span class="keyword">let</span> version = <span class="number">0</span>
+<span class="keyword">try</span> { version = <span class="type">Number</span>(fs.<span class="function">readFileSync</span>(ADMIN_ARTICLES_VERSION_FILE, <span class="string">'utf-8'</span>)) || <span class="number">0</span> } <span class="keyword">catch</span> {}
+<span class="keyword">return</span> <span class="function">send</span>(res, <span class="number">200</span>, { list, version })
+
+<span class="comment">// POST/PUT/DELETE/Upload 后写入版本号</span>
+<span class="function">writeJson</span>(ADMIN_ARTICLES_VERSION_FILE, <span class="type">Date</span>.now())</code></pre>
+
+<!-- ==================== 9. 配置层优化 ==================== -->
+<h2 id="config-suggestions">
+  <span class="icon" style="background:rgba(56,189,248,0.15);color:var(--accent);">09</span>
+  配置层优化建议
+</h2>
+
+<h3>建议 1：添加 Cloudflare Pages _headers 文件</h3>
+<div class="card card-info">
+  <p>在 <span class="file-path">public/_headers</span> 中添加全局缓存规则，作为代码层 <code>Cache-Control</code> 的兜底保障：</p>
+  <pre><code><span class="comment"># 公开 API 端点禁止缓存</span>
+/local-api/*
+  Cache-Control: no-store, no-cache, must-revalidate
+
+<span class="comment"># 管理端点禁止缓存</span>
+/admin/*
+  Cache-Control: no-store, no-cache, must-revalidate
+
+<span class="comment"># 静态资源长期缓存（带文件哈希的 JS/CSS）</span>
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+<span class="comment"># HTML 文件短缓存</span>
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate</code></pre>
+</div>
+
+<h3>建议 2：配置 robots.txt 处理已删除文章的 SEO</h3>
+<div class="card card-info">
+  <p>在 <span class="file-path">public/robots.txt</span> 中配置：</p>
+  <pre><code>User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /article/
+
+<span class="comment"># 已删除的文章 URL 可动态添加到 Disallow</span>
+<span class="comment"># 或使用 sitemap.xml 仅暴露有效文章</span>
+Sitemap: https://yourdomain.com/sitemap.xml</code></pre>
+</div>
+
+<h3>建议 3：文章详情页 404 处理优化</h3>
+<div class="card card-info">
+  <p>当前 <code>loadArticleBySlug()</code> 返回 null 时，前端回退到静态文章。应改为显示"文章不存在"提示：</p>
+  <pre><code><span class="comment">// 在 ArticleDetail.tsx 中</span>
+<span class="keyword">const</span> article = <span class="keyword">await</span> <span class="function">loadArticleBySlug</span>(id)
+<span class="keyword">if</span> (!article) {
+  <span class="comment">// 显示 404 提示而非回退静态文章</span>
+  <span class="keyword">return</span> &lt;<span class="type">NotFound</span> /&gt;
+}</code></pre>
+</div>
+
+<h3>建议 4：考虑添加 Cloudflare Cache API 主动清除</h3>
+<div class="card card-info">
+  <p>在管理端点中，删除操作后可使用 Cloudflare Cache API 主动清除指定 URL 的边缘缓存：</p>
+  <pre><code><span class="comment">// 在 functions/admin/[[path]].ts 删除操作后</span>
+<span class="keyword">if</span> (typeof caches !== <span class="string">'undefined'</span>) {
+  <span class="keyword">const</span> cache = <span class="keyword">await</span> caches.<span class="function">open</span>(<span class="string">'articles-cache'</span>)
+  <span class="keyword">await</span> cache.<span class="function">delete</span>(<span class="string">'/local-api/articles'</span>)
+}</code></pre>
+</div>
+
+<!-- ==================== 10. 防复发 ==================== -->
+<h2 id="recurrence">
+  <span class="icon" style="background:rgba(168,85,247,0.15);color:#c084fc;">10</span>
+  防止复发的长期保障机制
+</h2>
+
+<div class="card card-success">
+  <div class="card-title">已建立的防护体系</div>
+  <table>
+    <tr>
+      <th>防护层</th>
+      <th>机制</th>
+      <th>生效条件</th>
+    </tr>
+    <tr>
+      <td>第一层：版本号比对</td>
+      <td>每次请求携带 <code>version</code>，前端比对后自动失效缓存</td>
+      <td>30 秒缓存到期后下次请求触发</td>
+    </tr>
+    <tr>
+      <td>第二层：同标签页即时失效</td>
+      <td>后台操作后直接调用 <code>invalidateArticleCache()</code></td>
+      <td>管理操作完成瞬间</td>
+    </tr>
+    <tr>
+      <td>第三层：跨标签页广播</td>
+      <td>通过 <code>localStorage</code> storage 事件通知其他标签页</td>
+      <td>storage 事件触发（毫秒级）</td>
+    </tr>
+    <tr>
+      <td>第四层：HTTP 头禁止缓存</td>
+      <td><code>Cache-Control: no-store</code> + <code>cache: 'no-store'</code></td>
+      <td>每次 HTTP 请求</td>
+    </tr>
+    <tr>
+      <td>第五层：短 TTL 兜底</td>
+      <td>内存缓存 30 秒自动过期</td>
+      <td>最坏情况 30 秒后自动刷新</td>
+    </tr>
+  </table>
+</div>
+
+<div class="card card-warning">
+  <div class="card-title">仍需关注的事项</div>
+  <ul>
+    <li><strong>KV 最终一致性（~5秒）：</strong>这是 Cloudflare KV 的固有限制，无法消除。删除后 5 秒内的请求可能读到旧数据，属于可接受范围。</li>
+    <li><strong>其他用户的前台缓存：</strong>如果其他用户的前台页面在删除操作前已加载并缓存了文章列表，他们的内存缓存将在最多 30 秒后过期刷新。这是当前架构下最快的同步速度。</li>
+    <li><strong>搜索引擎索引：</strong>需要手动在 Google Search Console / 百度站长平台提交已删除 URL 的移除请求。</li>
+    <li><strong>评论残留：</strong>被删除文章的评论数据（key 为 <code>/article/{id}</code>）仍存储在 KV 的 <code>comments_data</code> 中。建议在删除文章时同步清理关联评论。</li>
+  </ul>
+</div>
+
+<div class="card card-info">
+  <div class="card-title">未来架构演进建议</div>
+  <ul>
+    <li><strong>升级到 Cloudflare D1：</strong>如果文章数量增长，KV 的全量读取模式（<code>JSON.parse</code> 整个数组）会成为性能瓶颈。D1（SQLite）支持按 ID 单条查询和删除，天然避免缓存问题。</li>
+    <li><strong>引入 SWR / React Query：</strong>用成熟的客户端数据请求库替代手动内存缓存，获得自动重验证、焦点刷新、乐观更新等能力。</li>
+    <li><strong>添加 Webhook / Server-Sent Events：</strong>后台操作后通过 SSE 推送通知到所有在线前台客户端，实现真正的实时同步（零延迟）。</li>
+  </ul>
+</div>
+
+<!-- 修复文件清单 -->
+<h2 id="files">
+  <span class="icon" style="background:rgba(251,191,36,0.15);color:var(--accent-warm);">11</span>
+  修改文件清单
+</h2>
+
+<table>
+  <tr>
+    <th>文件路径</th>
+    <th>修改内容</th>
+    <th>影响范围</th>
+  </tr>
+  <tr>
+    <td><code>functions/local-api/articles.ts</code></td>
+    <td>添加 Cache-Control 头 + 返回版本号</td>
+    <td>线上公开文章 API</td>
+  </tr>
+  <tr>
+    <td><code>functions/local-api/[[path]].ts</code></td>
+    <td>文章列表端点并行读取版本号</td>
+    <td>通配路由公开 API</td>
+  </tr>
+  <tr>
+    <td><code>functions/admin/[[path]].ts</code></td>
+    <td>新增 kvSetArticles() 封装 + 版本号写入</td>
+    <td>后台增删改操作</td>
+  </tr>
+  <tr>
+    <td><code>src/data/articles.ts</code></td>
+    <td>缓存失效机制 + 版本比对 + TTL 缩短 + cache:no-store</td>
+    <td>前端文章数据加载层</td>
+  </tr>
+  <tr>
+    <td><code>src/pages/admin/ArticleManage.tsx</code></td>
+    <td>增删改后调用 broadcastArticleCacheInvalidation()</td>
+    <td>后台文章管理页面</td>
+  </tr>
+  <tr>
+    <td><code>server/local-api.cjs</code></td>
+    <td>本地开发服务器版本号文件同步</td>
+    <td>本地开发环境</td>
+  </tr>
+</table>
+
+<div style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+  <p>本方案针对 Cloudflare Pages + KV 架构的博客系统，修复已完成并可直接部署。</p>
+  <p style="margin-top:0.5rem;">生成时间：2026-08-17</p>
+</div>
+
+</div>
+</body>
+</html>

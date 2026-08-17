@@ -253,12 +253,11 @@ export async function loadFriends(force = false): Promise<Friend[]> {
         description: f.description || '',
         tag: f.tag || '博客',
       }))
-      // 合并：审批通过的友链 + 静态友链（去重）
-      const kvUrls = new Set(kvFriends.map(f => f.url))
-      const merged = [...kvFriends, ...FRIENDS.filter(f => !kvUrls.has(f.url))]
-      _cachedFriends = merged
+      // 后台数据即唯一数据源（后台友链表已包含内置种子友链），
+      // 后台的编辑/删除/新增会实时反映到前台；请求失败才回退静态数据
+      _cachedFriends = kvFriends
       _cacheTime = Date.now()
-      return merged
+      return kvFriends
     }
   } catch { /* ignore, fall back to static */ }
   return FRIENDS
