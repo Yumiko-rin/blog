@@ -32,6 +32,7 @@ coverage/
 
 # 临时 / 测试产物（非源码）
 .tmp_probe/
+dev/
 _kirameku*
 kirameku_src/
 home_live.html
