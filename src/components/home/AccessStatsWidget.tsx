@@ -123,10 +123,17 @@ export function AccessStatsWidget() {
 
   const load = useCallback(async (count: boolean) => {
     try {
-      const r = await fetch(`/local-api/stats${count ? '/visit' : ''}`, {
-        method: count ? 'POST' : 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      })
+      // 记录访问：仅当需要计数时 POST 一次（上报失败不阻断读取）
+      if (count) {
+        try {
+          await fetch('/local-api/stats/visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch { /* 上报失败不阻断读取 */ }
+      }
+      // 统一从 GET 读取完整统计（含 uv / 近 7 日趋势），避免 POST 响应缺字段导致访客数显示为 0
+      const r = await fetch('/local-api/stats', { headers: { 'Content-Type': 'application/json' } })
       if (r.ok) {
         const d = await r.json()
         if (typeof d?.total === 'number') {

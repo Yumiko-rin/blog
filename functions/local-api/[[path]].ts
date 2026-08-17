@@ -407,13 +407,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       const s = raw ? JSON.parse(raw) : { total: 0, visitors: [], days: {} }
       const dayKey = new Date().toISOString().slice(0, 10)
       const today = s.days?.[dayKey] || { pv: 0, uv: [] }
+      const recent = Object.entries(s.days || {})
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .slice(-7)
+        .map(([date, v]: [string, any]) => ({
+          date,
+          pv: (v?.pv as number) || 0,
+          uv: Array.isArray(v?.uv) ? v.uv.length : 0,
+        }))
       return json({
         total: s.total || 0,
         today: today.pv || 0,
         todayUv: Array.isArray(today.uv) ? today.uv.length : 0,
         uv: s.visitors?.length || 0,
         days: Object.keys(s.days || {}).length,
-        recent: [],
+        recent,
         source: 'kv',
       })
     }
@@ -434,7 +442,13 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       if (!s.visitors.includes(cid)) s.visitors.push(cid)
       if (s.visitors.length > 20000) s.visitors = s.visitors.slice(-20000)
       await kv.put('stats_data', JSON.stringify(s))
-      return json({ total: s.total, today: s.days[dayKey].pv, source: 'kv' })
+      return json({
+        total: s.total,
+        today: s.days[dayKey].pv,
+        todayUv: Array.isArray(s.days[dayKey].uv) ? s.days[dayKey].uv.length : 0,
+        uv: s.visitors.length,
+        source: 'kv',
+      })
     }
 
     // 音乐流式代理：/local-api/music-stream?type=pic|url|lrc&id=<neteaseId>
