@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-生成博客四篇文章，并写入全部 4 个存储位置：
+生成博客九篇文章，并写入全部 4 个存储位置：
   - server-data/admin-articles.json   (本地运行数据，前台实际读取)
   - server/seed/articles.json         (种子，server-data 为空时填充)
   - src/data/articles.ts              (静态兜底 + git 源码，保留底部辅助函数)
@@ -559,7 +559,691 @@ DeepSeek Harness 把「让模型真正干活」的那一层彻底开源了。它
 # ---------------------------------------------------------------------------
 # 组装文章列表
 # ---------------------------------------------------------------------------
+vs_code_content = r"""## 前言
+
+如果说键盘和椅子是程序员的物理装备，那编辑器就是我们的「数字工作台」。同样八小时，配置得当的 VS Code 和裸奔的 VS Code，产出可能差出一倍。它免费、跨平台、插件生态全球第一，几乎能变成任何语言、任何角色需要的样子——前端、后端、数据、写作、运维都能用它。
+
+这篇文章不堆砌花哨技巧，而是给你一套**能立刻落地的高效配置 + 必备插件清单**，照着装完，你的编辑器就能从「能写代码」升级成「顺手到忘记它的存在」。
+
+![配图](https://picsum.photos/seed/vscode-setup/1000/500)
+
+## 一、先调好基础设置
+
+很多人装完插件却没调设置，等于买了好刀不磨。打开「设置」(Ctrl/Cmd + ,)，重点改这几项，或直接写进 `settings.json`：
+
+```json
+{
+  "editor.fontFamily": "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+  "editor.fontLigatures": true,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "files.autoSave": "onFocusChange",
+  "editor.minimap.enabled": false,
+  "editor.cursorBlinking": "smooth",
+  "editor.smoothScrolling": true,
+  "workbench.colorTheme": "One Dark Pro",
+  "workbench.iconTheme": "material-icon-theme",
+  "terminal.integrated.fontSize": 13
+}
+```
+
+几个关键点：
+- **等宽字体 + 连字**：JetBrains Mono / Fira Code 让 `=>`、`!=` 显示成连笔符号，长时间看更舒服。
+- **保存时自动格式化**：配合 Prettier，从此不用手动调缩进。
+- **关掉 MiniMap**：屏幕窄的时候它纯属占地方，看代码不如用 Ctrl+G 跳行。
+- **自动保存**：`onFocusChange` 比 `afterDelay` 更可控，切窗口才存。
+
+## 二、插件怎么装、怎么管
+
+插件在左侧扩展图标（或 Ctrl/Cmd+Shift+X）搜索安装。建议装完用 **Settings Sync**（设置图标齿轮 → 打开设置同步）把插件和配置同步到 GitHub 账号，换电脑一键恢复。
+
+> 小技巧：插件别贪多。30 个以内够用，装一堆只会拖慢启动。下面按「必装 → 按需」分好类了。
+
+## 三、必装插件清单
+
+### 1. 代码质量（人人都要）
+
+| 插件 | 作用 |
+|------|------|
+| **Prettier** | 统一代码格式，保存即排版，团队协作的救命稻草 |
+| **ESLint** | JavaScript/TS 的「语法警察」，边写边报坏味道 |
+| **Python** (ms-python) | 官方 Python 支持：智能补全、调试、虚拟环境识别 |
+| **rust-analyzer** | Rust 的官方级语言服务，补全和报错极快 |
+| **Go** (golang.go) | Go 开发全家桶 |
+
+### 2. 效率加速器
+
+| 插件 | 作用 |
+|------|------|
+| **GitLens** | 每一行代码后面标注「谁、什么时候、为什么改的」，code review 神器 |
+| **Todo Tree** | 把代码里 `TODO`/`FIXME` 聚合成清单，一眼看清待办 |
+| **Project Manager** | 多项目快速切换，不用每次翻文件树 |
+| **Bookmarks** | 在当前文件打书签，长文件来回跳不迷路 |
+| **Error Lens** | 把报错直接显示在代码行尾，不用悬停 |
+| **Path Intellisense** | 写路径自动补全，导入文件不再拼错 |
+
+### 3. 远程与运维
+
+| 插件 | 作用 |
+|------|------|
+| **Remote - SSH** | 直接在远程服务器/容器里写代码，本地零配置 |
+| **Docker** | 管理镜像、容器，看日志 |
+| **REST Client** | 用 `.http` 文件发请求，告别切到 Postman |
+| **WSL** | Windows 下无缝用 Linux 环境 |
+
+### 4. Markdown 与写作
+
+| 插件 | 作用 |
+|------|------|
+| **Markdown All in One** | 目录、快捷键、表格对齐一站式 |
+| **markdownlint** | 实时检查格式规范 |
+| **Paste Image** | 剪贴板图片直接粘成文件 |
+| **Code Runner** | 选中代码一键运行，测试片段超快 |
+
+### 5. AI 辅助（可选）
+
+- **GitHub Copilot** / **Cursor** 的插件版：行内补全自动续写。
+- **Continue**：把 DeepSeek 等本地/云端模型接进编辑器当副驾。
+
+## 四、settings.json 进阶片段
+
+想让编辑器更懂你，再补几段：
+
+```json
+{
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "python.defaultInterpreterPath": "venv/bin/python",
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+  "editor.guides.bracketPairs": "active",
+  "breadcrumbs.enabled": true
+}
+```
+
+- `codeActionsOnSave` 让保存时顺手修掉 ESLint 能自动修的问题。
+- `bracketPairs: active` 高亮匹配的括号，嵌套深时不晕。
+- 面包屑（breadcrumbs）显示当前符号路径，大文件导航更顺。
+
+## 五、快捷键与工作区
+
+配置再好，记不住快捷键也白搭。几个高频的先练熟：
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl/Cmd + P` | 模糊搜文件，跳转最快 |
+| `Ctrl/Cmd + Shift + P` | 命令面板，所有功能入口 |
+| `Ctrl/Cmd + \` | 开关集成终端 |
+| `Alt + Click` | 多光标同时编辑 |
+| `Ctrl/Cmd + D` | 选中词多处同步改 |
+| `F12` / `Ctrl/Cmd + Click` | 跳转到定义 |
+
+建议把常用操作「录制宏」（需 Macro 类插件）绑到组合键，比如「格式化+保存+运行测试」一步到位。
+
+## 六、避坑指南
+
+- **启动慢**：用 `Code --disable-gpu` 或排查冲突插件；`Developer: Show Running Extensions` 看谁最耗资源。
+- **插件冲突**：两个格式化器打架时，明确给每种语言指定 `defaultFormatter`。
+- **配置不同步**：换电脑前务必开 Settings Sync，否则重装一遍很痛苦。
+- **大文件卡**：超 50MB 的文件用专用编辑器（如 Notepad++）打开，别让 VS Code 硬扛。
+
+## 总结
+
+VS Code 的强大不在开箱即用，而在「你可以把它调成自己的样子」。先把本文的基础设置和必装插件落实，再用 Settings Sync 固化下来——这一步花半小时，之后每天省下的时间会成倍还给你。剩下的，是按自己工作流慢慢加插件，别一次堆满。
+"""
+
+hugo_hexo_content = r"""## 前言
+
+想认真写博客，第一步往往是「选什么引擎」。如果你不想被数据库、服务器、补丁折磨，又想页面飞快、还能免费托管，那**静态博客生成器**几乎是标准答案：你把 Markdown 写成文章，它一次性编译成纯 HTML，丢到任何静态托管上就能跑。
+
+最热门的两个选手是 **Hugo**（Go 写）和 **Hexo**（Node 写）。一个以「快」著称，一个以「生态」见长。这篇文章把两者摆在一起对比，再各给一条从零到上线的实操路线，帮你 10 分钟内定下来。
+
+![配图](https://picsum.photos/seed/static-blog/1000/500)
+
+## 一、Hugo vs Hexo：先选对人
+
+| 维度 | Hugo | Hexo |
+|------|------|------|
+| 开发语言 | Go | Node.js |
+| 构建速度 | 极快（万篇文章秒级） | 较慢（千篇以上明显变慢） |
+| 上手难度 | 中等，概念稍多 | 低，前端同学零门槛 |
+| 主题生态 | 丰富，官方主题库 | 极丰富，npm 插件海量 |
+| 部署体验 | 单二进制，无依赖 | 需 Node 环境 + npm 安装 |
+| 适合人群 | 内容多、重性能、怕麻烦 | 熟悉 JS、爱折腾插件 |
+
+一句话：**文章多、图省事选 Hugo；你是前端、想用 JS 生态就选 Hexo。** 两者最终产物都是静态文件，部署方式完全通用。
+
+## 二、Hugo 快速上手
+
+### 安装
+
+```bash
+# macOS
+brew install hugo
+# Windows (Chocolatey)
+choco install hugo -confirm
+# 或用 Go 直接装
+go install github.com/gohugoio/hugo@latest
+```
+
+### 建站与预览
+
+```bash
+hugo new site my-blog      # 生成站点骨架
+cd my-blog
+git init
+git submodule add https://github.com/theNewDynamic/gohugo-theme-ananke.git themes/ananke
+echo 'theme = "ananke"' >> hugo.toml
+hugo new content posts/hello.md   # 新建一篇文章
+hugo server -D              # 本地预览（含草稿）
+```
+
+### 配置与写作
+
+`hugo.toml` 里填标题、语言、菜单；文章用 Markdown 写，frontmatter 长这样：
+
+```markdown
+---
+title: "我的第一篇文章"
+date: 2026-08-17
+draft: false
+tags: [随笔]
+---
+正文从这里开始……
+```
+
+### 构建与部署
+
+```bash
+hugo          # 生成 public/ 目录（纯静态文件）
+hugo deploy   # 若配置了云部署（如 Cloudflare/S3）
+```
+
+## 三、Hexo 快速上手
+
+### 安装
+
+```bash
+npm install -g hexo-cli
+```
+
+### 建站与预览
+
+```bash
+hexo init my-blog
+cd my-blog
+npm install
+hexo new "hello"        # 新建文章 -> source/_posts/hello.md
+hexo server             # 本地预览 http://localhost:4000
+```
+
+### 换主题
+
+```bash
+git clone https://github.com/next-theme/hexo-theme-next themes/next
+# 改 _config.yml: theme: next
+```
+
+### 生成与部署
+
+```bash
+hexo generate           # 生成 public/
+hexo deploy             # 推到 GitHub Pages / 服务器（需配 deployer 插件）
+```
+
+## 四、内容写作通用技巧
+
+无论哪个引擎，写作都绕不开两点：
+
+1. **Frontmatter 元信息**：标题、日期、分类、标签、封面，决定文章在站点里的归属和展示。
+2. **资源目录**：图片建议单独建 `static/` 或 `assets/`，用相对路径引用，换主题不丢图。
+
+> 进阶：Hugo 支持 `Page Bundles`（每篇文章一个文件夹放图），Hexo 有 `hexo-asset-image` 插件做同样的事，迁移时图片不迷路。
+
+## 五、部署到免费托管
+
+静态文件的好处是「随便丢」。最主流三条路：
+
+| 平台 | 特点 | 适合 |
+|------|------|------|
+| **GitHub Pages** | 免费、和 Git 联动、自定义域名 | 个人博客首选 |
+| **Cloudflare Pages** | 全球加速、自带 HTTPS、连 Git 自动构建 | 追求速度/免运维 |
+| **Vercel** | 构建快、预览友好 | 前端开发者 |
+
+以 Cloudflare Pages 为例：把仓库连上，构建命令 `hugo` 或 `hexo generate`，输出目录 `public`，保存即部署，全球边缘节点秒开。
+
+## 六、主题与插件推荐
+
+- **Hugo**：Ananke（官方入门）、PaperMod（极简阅读）、Docsy（文档站）。
+- **Hexo**：Next（功能全）、Butterfly（美观、社区大）、Fluid（国产精品）。
+- 通用增强：评论（Giscus / Waline）、搜索（本地索引）、访问统计（Umami / 不蒜子）。
+
+## 七、避坑指南
+
+- **Hugo 版本错配**：主题要求新兼容日期时，升级 Hugo 后记得同步 `hugo.toml` 的 `baseURL`。
+- **Hexo 插件冲突**：`hexo-deployer-git` 和某些渲染插件不兼容时，锁定版本号。
+- **草稿不显示**：Hugo 本地用 `-D` 才看草稿，上线前把 `draft: false`。
+- **图片 404**：相对路径在本地和线上表现不同，优先用图床或确认资源目录配置。
+
+## 总结
+
+Hugo 和 Hexo 没有绝对优劣，只有合不合适。想要「装好就能跑、以后不操心」选 Hugo；想要「用 JS 生态、插件随便挑」选 Hexo。选定之后，建站→写 Markdown→推 Git→自动部署，这条流水线一旦跑顺，你会发现写博客的阻力一下小了一大半。
+"""
+
+notion_content = r"""## 前言
+
+如果 Obsidian 是「本地优先的纯文本第二大脑」，那 **Notion** 就是「云端的一体化工作台」。文档、表格、看板、日历、知识库、项目管理——全都能塞进同一个页面里，而且块（Block）可以随意拖拽组合。它的口号 "One workspace. Every team." 虽说是给企业听的，但个人用起来同样真香。
+
+这篇文章从核心概念讲到 Database 高阶玩法，再到可直接抄的模板和好用集成，帮你把 Notion 从「好看但不用」变成每天离不开的工具。
+
+![配图](https://picsum.photos/seed/notion-workspace/1000/500)
+
+## 一、先搞懂四个核心概念
+
+| 概念 | 是什么 | 类比 |
+|------|--------|------|
+| **Block（块）** | 页面的最小单元：一段文字、一个待办、一张图都是块 | 乐高的一块 |
+| **Page（页面）** | 由块组成，可无限嵌套子页面 | 文件夹 / 文档 |
+| **Database（数据库）** | 结构化数据的集合，同一份数据可多视图呈现 | 会变形的 Excel |
+| **Workspace（工作区）** | 你所有页面和数据库的顶层容器 | 整个仓库 |
+
+理解「一切皆块」是关键：页面里你既能写笔记，也能内嵌一个数据库、一张看板，甚至另一个页面。这种组合自由度是 Notion 的灵魂。
+
+## 二、基础操作三板斧
+
+1. **输入 `/` 唤出块菜单**：插入标题、待办、代码、分割线、引用、表格……几乎什么都靠它。
+2. **拖拽左侧 ⋮⋮ 手柄**：调整块顺序、缩进层级、转为列布局。
+3. **`@` 关联**：@一个页面或人名，自动建立双向链接，跨页面跳转。
+
+> 小技巧：把常用页面「添加到收藏（Favorite）」钉在侧边栏；用 `Ctrl/Cmd + P` 全局搜索，比翻目录快十倍。
+
+## 三、Database 才是重头戏
+
+普通表格只是表格，但 Notion 的 Database 能**同一份数据、多种视图**：
+
+| 视图 | 适合 | 例子 |
+|------|------|------|
+| Table（表格） | 结构化录入 | 文章清单 |
+| Board（看板） | 流程推进 | 任务按「待办/进行/完成」 |
+| Calendar（日历） | 按日期 | 日程、截止日 |
+| Gallery（画廊） | 卡片展示 | 模板库、灵感墙 |
+| List（列表） | 极简罗列 | 订阅源 |
+
+Database 的威力在**属性与关联**：
+- **属性类型**：文本、数字、选择/多选、日期、人员、文件、公式、关联（Relation）、汇总（Rollup）。
+- **Relation + Rollup**：A 表关联 B 表，B 表的汇总字段自动算进 A。比如「项目」表关联「任务」表，项目的「完成率」用 Rollup 自动统计。
+
+```markdown
+# 示例：读书数据库的属性
+书名(文本) | 状态(多选: 想读/在读/读完) | 评分(数字) | 笔记(关联: 笔记库) | 读完日期(日期)
+```
+
+## 四、可直接抄的模板推荐
+
+### 个人向
+
+| 模板 | 用途 |
+|------|------|
+| **每日日记** | 日期页 + 三件要事 + 感恩记录 |
+| **读书笔记** | 书名/作者/评分 + 金句摘录 + 读后感 |
+| **任务管理** | 看板视图，按优先级和截止日排 |
+| **习惯追踪** | 用多选或复选块记录每日打卡 |
+| **第二大脑 Inbox** | 临时灵感先丢进来，周末整理 |
+
+### 团队向
+
+| 模板 | 用途 |
+|------|------|
+| **团队 Wiki** | 公司/项目知识库，树状页面 |
+| **会议纪要** | 模板化记录决策与待办 |
+| **产品需求池** | 看板 + 优先级 + 负责人 |
+| **招聘追踪** | 候选人阶段管线 |
+
+> Notion 官方模板库（Templates 按钮）里有海量现成模板，搜中文/英文关键词直接点「Duplicate」复用，比自己搭省事。
+
+## 五、插件与集成推荐
+
+Notion 本身够强，加上集成更顺：
+
+- **Notion AI**：在页面里直接续写、总结、翻译、生成表格，写作利器。
+- **Web Clipper（浏览器剪辑器）**：把网页文章一键存成 Notion 页面，做稍后读。
+- **Zapier / Make**：把 Notion 连到 Gmail、日历、Slack，事件自动建行。
+- **Google Calendar 双向同步**：日程在日历和 Notion 间互相同步。
+- **Notion 中文社区插件 / 第三方同步**：如把 Notion 导出到 Obsidian 双向同步的方案。
+
+```markdown
+# 自动化示例：收到「读书」邮件 → Zapier 在「读书数据库」新建一行
+触发器: Gmail 新邮件 (标签=读书)
+动作: Notion 创建数据库条目 (书名=邮件主题)
+```
+
+## 六、实战：用 PARA 搭个人系统
+
+PARA（Projects 项目 / Areas 领域 / Resources 资源 / Archives 归档）是 Notion 上非常顺手的 organizing 法：
+
+1. 顶层四个页面对应 PARA 四类。
+2. 项目页用 Database 看板推进；领域页放长期职责（健康、财务）；资源页囤主题资料；归档页收已完结。
+3. 日常一切先丢 Inbox，周回顾时归类进 PARA。
+
+> 搭配前面的「每日日记」「习惯追踪」，一个进可攻（项目管理）、退可守（知识沉淀）的个人系统就成型了。
+
+## 七、避坑指南
+
+- **别过度设计**：一上来建十几个互相关联的数据库，维护成本爆炸。先简单，再扩展。
+- **性能**：单页面块过多（几千块）会卡；大资料拆成子页面。
+- **离线弱**：Notion 主打云端，断网几乎不可用；重要数据定期导出备份（Settings → Export）。
+- **数据安全**：工作区可设成员权限；敏感信息别明文丢进共享库。
+- **移动端**：App 体验够用但编辑不如桌面，复杂操作回桌面做。
+
+## 总结
+
+Notion 的魅力在「一个工具替代一堆工具」——笔记、任务、 wiki、项目管理全收编。入门记住「块 + 页面 + 数据库」三件套，进阶玩转 Relation/Rollup 和视图切换，再借模板和集成把重复劳动自动化。它不像 Obsidian 那样把数据完全交给你，却换来了极低的上手成本和极强的协作能力。搭好你的 PARA 系统，让信息和任务第一次真正「待在该待的地方」。
+"""
+
+cursor_content = r"""## 前言
+
+2024 年起，编程圈最常被问的问题从「你用啥编辑器」变成了「你用 Cursor 了吗」。它不是又一个 Chat 插件，而是**把 AI 当成一等公民的编辑器**——基于 VS Code 改造，你熟悉的所有快捷键、插件、主题都在，但多了能「读懂你整个项目、跨文件改代码、自己跑命令」的 AI 副驾。
+
+如果你已经会用 DeepSeek、Claude 之类的模型，Cursor 就是让它们直接在编辑器里干活的「操作台」。这篇文章从安装讲到核心功能，再到几条能立刻提高效率的工作流。
+
+![配图](https://picsum.photos/seed/cursor-editor/1000/500)
+
+## 一、Cursor 是什么，为什么值
+
+Cursor 本质是「AI 原生的 VS Code」：它兼容 VS Code 的扩展和设置，但内置了和代码库深度绑定的 AI 能力。和单纯在聊天框里问模型相比，它的优势是——
+
+| 能力 | 说明 |
+|------|------|
+| **理解整个代码库** | 提问时自动检索相关文件当上下文，不用你手动贴代码 |
+| **跨文件修改** | 一个需求可能涉及 5 个文件，它一次改完 |
+| **多模型可选** | 内置 Claude、GPT，也支持接 DeepSeek 等自定义端点 |
+| **在编辑器闭环** | 改完直接 diff、跑测试、提交，不用来回切窗口 |
+
+> 一句话：Copilot 是「补全工具」，Cursor 是「能动手的结对编程伙伴」。
+
+## 二、安装与登录
+
+官网 [cursor.com](https://cursor.com) 下载对应系统版本。首次打开用邮箱或 GitHub 登录，免费档有基础额度，Pro 档解锁更强模型和更长上下文。
+
+登录后建议：
+- 在 `Settings → Models` 里选默认模型，并把你自有的 API Key（如 DeepSeek、OpenAI）填上，走自己的额度更灵活。
+- 打开「隐私模式（Privacy Mode）」如果你在意代码不被用于训练。
+
+## 三、四个核心功能
+
+### 1. Tab 补全（最上头的功能）
+
+不用唤起任何命令，写着写着 Cursor 会在光标后灰色显示「下一行甚至下一段」的建议，按 `Tab` 直接采纳。它比传统补全强在**跨文件感知**——你刚在 A 文件改了函数签名，B 文件调用处它会主动提示同步改。
+
+### 2. Chat（侧边对话）
+
+快捷键 `Ctrl/Cmd + L` 打开聊天。关键是用 **@ 指定上下文**：
+
+- `@Codebase`：让模型基于整个项目回答（「这个认证流程在哪实现？」）
+- `@Files` / `@File`：指定某几个文件参与对话
+- `@Docs`：接入官方文档（如 React、Next.js）后提问
+- `@Web`：联网查最新资料
+
+### 3. Ctrl/Cmd + K 行内编辑
+
+选中一段代码按 `Cmd/Ctrl + K`，用自然语言改它：「把这个函数重构成异步的」「加输入校验」。改完以 diff 形式呈现，接受或拒绝都行。
+
+### 4. Composer / Agent 模式
+
+`Ctrl/Cmd + I` 打开 Composer，可以一次描述一个跨文件任务：「给用户在模块加一个忘记密码流程，包含后端接口、前端页面和邮件模板」。它会自己读文件、写多个文件、跑命令，并在中途请求你确认敏感操作。Agent 模式更进一步，能自主循环「思考→执行→验证」直到任务完成。
+
+## 四、让 AI 更懂你的项目
+
+在项目根目录放一个规则文件，Cursor 每次都会参考：
+
+```markdown
+# .cursorrules（旧版）或 Settings → Rules for AI（新版）
+- 使用 TypeScript，禁止 any
+- 函数单一职责，命名用 camelCase
+- 新增接口必须带单元测试
+- 优先复用 src/lib 下的工具函数
+```
+
+这样它生成的代码自动贴合你的规范，不用每次重复叮嘱。
+
+## 五、几条高效工作流
+
+1. **读陌生项目**：`@Codebase` 问「这个服务的入口和核心模块在哪」，几分钟摸清架构。
+2. **修 Bug**：把报错贴进 Chat，让它定位原因并给出 patch，diff 确认后采纳。
+3. **写新功能**：Composer 描述需求 → 审查它改的多个文件 → 跑测试 → 提交。
+4. **补全测试**：选中函数「给这个写单元测试，覆盖边界情况」。
+
+> 实践原则：**AI 写，你来审**。它擅长样板代码和局部修改，但架构决策和关键逻辑必须自己把关。
+
+## 六、和传统编辑器/Copilot 的区别
+
+- 比起纯 VS Code + Copilot：Cursor 的上下文检索和跨文件修改是代差体验。
+- 比起 ChatGPT 网页版：Cursor 直接操作你的文件，改完即所见即所得。
+- 比起 Claude Code / dsh 这类 Agent 框架：Cursor 更轻、更偏「编辑器内辅助」，适合日常开发；重型自动化交给专门的 Agent 工具。
+
+## 七、避坑指南
+
+- **别盲信输出**：AI 可能编造不存在的 API 或函数，生成后一定跑一遍编译/测试。
+- **大仓库上下文爆炸**：项目太大时 `@Codebase` 会截断，用 `@File` 精准指定更稳。
+- **费用控制**：Pro 档按请求计费，长对话多开新会话；用自有 Key 更可控。
+- **密钥安全**：别把 `.env`、密钥文件暴露给 `@Codebase` 或贴进对话。
+- **保留判断力**：它擅长「怎么写」，但不懂「为什么写」，业务正确性仍靠你。
+
+## 总结
+
+Cursor 不是要取代程序员，而是把「从想法到代码」之间的机械劳动大幅压缩。掌握 Tab 补全、Chat 的 @上下文、Cmd+K 行内改、Composer 跨文件改这四板斧，再配一份 `.cursorrules` 让它守规范，你会发现日常开发里「复制粘贴调格式」「翻文件找接口」这类时间被悄悄省了下来。把它当不知疲倦的初级搭档，而你自己专注在真正需要判断力的地方。
+"""
+
+ollama_content = r"""## 前言
+
+前面聊 DeepSeek 时提到「本地部署」——把模型权重拉到自己机器上跑，数据不出门、调用不要钱、断网也能用。但真要做，第一步往往是：**怎么最快把模型跑起来？** 答案通常是 Ollama。
+
+Ollama 把「下载模型 + 加载权重 + 起服务」三件事压缩成一条命令，macOS / Windows / Linux 通吃。这篇文章带你从安装到实战，把它接进聊天界面和编辑器，真正把「本地大模型」用起来。
+
+![配图](https://picsum.photos/seed/ollama-local/1000/500)
+
+## 一、为什么要在本地跑
+
+| 动机 | 说明 |
+|------|------|
+| **隐私** | 公司内部文档、个人笔记不用上传任何云 |
+| **免费** | 一次下载，无限次调用，没有 API 账单 |
+| **离线** | 没网也能聊、能总结 |
+| **可定制** | 换量化版本、改系统提示词、接私域知识 |
+| **可控** | 不依赖第三方服务稳定性 |
+
+代价是硬件：小模型（7B）普通笔记本勉强能跑，大模型（70B+）需要好显卡或高内存。日常用 7B~14B 蒸馏版性价比最高。
+
+## 二、安装
+
+去 [ollama.com](https://ollama.com) 下载安装包，或用包管理器：
+
+```bash
+# macOS
+brew install ollama
+# Windows: 下载 exe 安装，或
+winget install Ollama.Ollama
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+装完终端里 `ollama --version` 有输出即成功。macOS 上它会常驻菜单栏，Windows 是系统托盘。
+
+## 三、核心命令
+
+```bash
+ollama pull llama3.1      # 下载模型（不运行）
+ollama run llama3.1       # 下载并进入交互式对话
+ollama list               # 看本地已有哪些模型
+ollama rm llama3.1        # 删除模型释放空间
+ollama ps                 # 看正在运行的模型
+```
+
+进对话后直接打字，输入 `/bye` 退出。`run` 时会自动下载，首次稍慢，之后秒开。
+
+## 四、常用模型怎么选
+
+Ollama 的模型库（[ollama.com/library](https://ollama.com/library)）里有大量预置模型。几个常用的：
+
+| 模型 | 适合 | 体量 |
+|------|------|------|
+| `llama3.1` / `llama3.2` | 通用对话、写作 | 8B / 3B |
+| `deepseek-r1:7b` | 推理、代码（前篇 DeepSeek 提到的本地版） | 7B 蒸馏 |
+| `qwen2.5` | 中文能力强 | 7B / 14B |
+| `mistral` / `mixtral` | 欧洲系、速度快 | 7B / 8x7B |
+| `phi3` | 小而精，轻量设备 | 3.8B |
+
+> 命名里的 `:7b` 是参数量（70 亿）。还有 `:q4_K_M` 这类量化后缀——数字越小越省显存、精度略降。普通显卡优先选 `q4` 量化版。
+
+拉一个 DeepSeek 蒸馏版试试（呼应前面的本地部署）：
+
+```bash
+ollama run deepseek-r1:7b
+```
+
+## 五、当成本地 API 与聊天界面
+
+Ollama 装好后会自动起一个本地服务（默认 `http://127.0.0.1:11434`），暴露 OpenAI 兼容接口，任意支持自定义端点的工具都能接：
+
+```bash
+# 用 curl 直接调
+curl http://127.0.0.1:11434/api/generate -d '{
+  "model": "llama3.1",
+  "prompt": "用一句话解释什么是向量数据库"
+}'
+```
+
+想有漂亮界面，装 **Open WebUI**（自托管聊天前端）：
+
+```bash
+docker run -d -p 3000:8080 \
+  -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+  ghcr.io/open-webui/open-webui:main
+```
+
+打开 `localhost:3000` 就能像用网页版 AI 一样跟本地模型聊，还能建知识库、设角色。
+
+## 六、接进编辑器当副驾
+
+前面说的 VS Code / Cursor 都能把 Ollama 设为后端：
+- **Continue**（VS Code 插件）：配置 `model: "ollama"` + 模型名，离线也能补全。
+- **Cursor**：Settings 里加自定义 OpenAI 兼容端点，Base URL 填 `http://127.0.0.1:11434/v1`。
+
+这样你的代码助手完全跑在本地，敏感代码零外泄。
+
+## 七、进阶玩法
+
+- **自定义 Modelfile**：把系统提示词、模板、参数固化成自己的模型。
+
+```dockerfile
+FROM llama3.1
+SYSTEM "你是一位严谨的中文技术助手，回答简洁。"
+PARAMETER temperature 0.3
+```
+
+```bash
+ollama create my-assistant -f Modelfile
+ollama run my-assistant
+```
+
+- **量化取舍**：显存不够就选更小的 q 版本；追求质量上 `q8` 或全精度（需大显存）。
+- **GPU 加速**：NVIDIA 装好驱动即可；Apple Silicon 原生利用神经引擎，体验很好。
+
+## 八、硬件参考
+
+| 配置 | 能跑的模型 |
+|------|-----------|
+| 16GB 内存 / 无独显 | 3B~7B（CPU 推理，较慢） |
+| 8GB 显存 | 7B~13B 流畅 |
+| 16~24GB 显存 | 13B~34B 舒适 |
+| 32GB+ 显存 | 70B 级别（或量化版） |
+
+没独显也别灰心，CPU + 足够内存能跑 7B，只是慢些。
+
+## 九、避坑指南
+
+- **跑不动/卡死**：模型超出显存会狂吃内存甚至 OOM。换更小参数或量化版。
+- **中文弱**：部分小模型中文一般，优先 `qwen2.5` 或给足系统提示词。
+- **上下文短**：本地小模型上下文窗口有限，长文档先切片再投喂。
+- **服务没起**：确认 `ollama serve` 在跑，端口 11434 没被占用。
+- **更新模型**：`ollama pull` 同名会拉最新，旧版本不会自动覆盖。
+
+## 总结
+
+Ollama 把「本地大模型」从「需要算法工程师」降级到「一条命令」。装好它，你就有了一个永远在线、免费、隐私可控的 AI 底座——既能用 Open WebUI 当私人聊天机器人，又能接进 VS Code / Cursor 当离线副驾，还能用 Modelfile 调成自己的专属助手。配合前面聊过的 DeepSeek、Claude 等云端模型，你就能在「隐私、成本、能力」之间自由取舍：敏感活本地干，硬核活上云端。
+"""
+
 articles = [
+    {
+        "id": "vscode-setup-plugins",
+        "slug": "vscode-setup-plugins",
+        "title": "VS Code 高效配置与必备插件推荐",
+        "excerpt": "从基础设置到必装插件清单，一套能立刻落地的 VS Code 高效配置：字体连字、保存即格式化、GitLens/Todo Tree/Remote-SSH 等效率插件，以及 settings.json 进阶片段与高频快捷键。",
+        "content": vs_code_content,
+        "cover": "https://picsum.photos/seed/vscode-cover/1200/600",
+        "category": "软件",
+        "tags": ["VS Code", "编辑器", "配置", "插件", "效率工具"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
+    {
+        "id": "hugo-hexo-blog",
+        "slug": "hugo-hexo-blog",
+        "title": "Hugo 与 Hexo 静态博客搭建完全指南：选型对比与上线实战",
+        "excerpt": "把 Hugo 和 Hexo 摆在一起对比（语言/速度/生态/上手难度），各给一条从建站、写 Markdown、生成到部署到 GitHub Pages/Cloudflare Pages 的实操路线，帮你十分钟定下来。",
+        "content": hugo_hexo_content,
+        "cover": "https://picsum.photos/seed/hugo-hexo-cover/1200/600",
+        "category": "技术",
+        "tags": ["Hugo", "Hexo", "静态博客", "建站", "部署", "博客"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
+    {
+        "id": "notion-guide",
+        "slug": "notion-guide",
+        "title": "Notion 全攻略：从块与数据库到模板、集成的高效用法",
+        "excerpt": "讲清 Notion 的块/页面/数据库/工作区四概念，Database 多视图与 Relation/Rollup 高阶玩法，附个人与团队可直接抄的模板，以及 Notion AI、Web Clipper、Zapier 等集成推荐。",
+        "content": notion_content,
+        "cover": "https://picsum.photos/seed/notion-cover/1200/600",
+        "category": "软件",
+        "tags": ["Notion", "笔记", "知识管理", "模板", "效率", "协作"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
+    {
+        "id": "cursor-guide",
+        "slug": "cursor-guide",
+        "title": "Cursor 编辑器使用攻略：把 AI 变成你的编程副驾",
+        "excerpt": "基于 VS Code 的 AI 原生编辑器 Cursor：Tab 补全、Chat 的 @Codebase/@File 上下文、Cmd+K 行内改、Composer 跨文件改四大功能，配 .cursorrules 与几条高效工作流。",
+        "content": cursor_content,
+        "cover": "https://picsum.photos/seed/cursor-cover/1200/600",
+        "category": "软件",
+        "tags": ["Cursor", "AI编程", "编辑器", "代码助手", "效率"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
+    {
+        "id": "ollama-local-llm",
+        "slug": "ollama-local-llm",
+        "title": "Ollama 本地大模型部署指南：从一条命令到私人 AI 底座",
+        "excerpt": "用 Ollama 把大模型拉到本地跑：安装、pull/run 命令、常用模型选型，接 Open WebUI 当私人聊天机器人，再接进 VS Code/Cursor 当离线副驾，附 Modelfile 自定义与硬件参考。",
+        "content": ollama_content,
+        "cover": "https://picsum.photos/seed/ollama-cover/1200/600",
+        "category": "技术",
+        "tags": ["Ollama", "本地大模型", "LLM", "部署", "隐私", "开源"],
+        "date": DATE,
+        "views": 0,
+        "likes": 0,
+        "isPinned": False,
+    },
     {
         "id": "deepseek-harness-guide",
         "slug": "deepseek-harness-guide",
@@ -654,7 +1338,7 @@ header = (
     "import type { Article } from '@/types'\n"
     "\n"
     "/**\n"
-    " * 文章数据（Markdown 编写、Obsidian 使用+插件、Cloudflare 指南、DeepSeek Harness 指南）\n"
+    " * 文章数据（VS Code 配置、Hugo/Hexo 博客、Notion、Cursor、Ollama、Markdown、Obsidian、Cloudflare、DeepSeek Harness 共九篇）\n"
     " * 首页列表与详情页共用此数据源\n"
     " * id 使用 slug，保证 /article/:id 路由对齐\n"
     " */\n"
