@@ -2,25 +2,17 @@
  * Cloudflare Pages Function: /admin/* 后台管理 API
  * ------------------------------------------------------------------
  * 鉴权：密码登录 → 签发 JWT（HttpOnly Cookie + Bearer Token 双通道）
- * 数据：文章/说说存 KV（JSON），评论/统计/友链复用现有 KV 数据
+ * 数据：文章/说说/友链/画廊存 KV（JSON），评论/统计复用现有 KV 数据
  *
- * 路由：
- *   POST /admin/login              — 登录
- *   GET  /admin/auth               — 验证 token
- *   GET  /admin/dashboard          — 概览数据
- *   GET  /admin/articles           — 文章列表
- *   POST /admin/articles           — 新建文章
- *   PUT  /admin/articles           — 更新文章（body.id）
- *   DELETE /admin/articles         — 删除文章（body.id）
- *   GET  /admin/shuoshuo           — 说说列表
- *   POST /admin/shuoshuo           — 新建说说
- *   PUT  /admin/shuoshuo           — 更新说说
- *   DELETE /admin/shuoshuo         — 删除说说
- *   GET  /admin/comments           — 全部评论
- *   DELETE /admin/comments         — 删除评论
- *   GET  /admin/friends            — 友链申请列表
- *   PUT  /admin/friends/status     — 审批友链申请
+ * 内置种子：首次使用（KV 对应键为空）时自动导入内置静态内容，
+ * 使后台能直接管理前台已有的文章/说说/友链/画廊相册。
  */
+
+// 内置种子（由 scripts/export-seeds.cjs 生成，勿手改）
+import { SEED_ARTICLES } from '../seed/articles'
+import { SEED_SHUOSHUO } from '../seed/shuoshuo'
+import { SEED_FRIENDS } from '../seed/friends'
+import { SEED_GALLERY_ALBUMS } from '../seed/gallery'
 
 interface Env {
   COMMENTS_KV?: KVNamespace
@@ -114,6 +106,28 @@ async function requireAuth(req: Request, secret: string): Promise<boolean> {
 
 const KV_ARTICLES = 'admin_articles'
 const KV_SHUOSHUO = 'admin_shuoshuo'
+const KV_FRIENDS = 'admin_friends'
+const KV_GALLERY = 'admin_gallery'
+
+/** 内置种子映射：对应 KV 为空时自动导入（后台可管理前台已有的静态内容） */
+const SEED_MAP: { key: string; seed: any[] }[] = [
+  { key: KV_ARTICLES, seed: SEED_ARTICLES },
+  { key: KV_SHUOSHUO, seed: SEED_SHUOSHUO },
+  { key: KV_FRIENDS, seed: SEED_FRIENDS },
+  { key: KV_GALLERY, seed: SEED_GALLERY_ALBUMS },
+]
+
+async function ensureSeed(kv: KVNamespace | undefined, key: string): Promise<any[]> {
+  const existing = await kvGet<any[]>(kv, key)
+  if (Array.isArray(existing) && existing.length > 0) return existing
+  if (!kv) return existing || []
+  const cfg = SEED_MAP.find(m => m.key === key)
+  if (cfg && Array.isArray(cfg.seed) && cfg.seed.length > 0) {
+    await kvSet(kv, key, cfg.seed)
+    return cfg.seed
+  }
+  return existing || []
+}
 
 async function kvGet<T>(kv: KVNamespace | undefined, key: string): Promise<T | null> {
   if (!kv) return null
@@ -213,8 +227,8 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
     if (route === '/dashboard' && request.method === 'GET') {
       const comments = await loadComments(kv)
       const stats = await loadStats(kv)
-      const articles = await kvGet<any[]>(adminKv, KV_ARTICLES) || []
-      const shuoshuo = await kvGet<any[]>(adminKv, KV_SHUOSHUO) || []
+      const articles = await ensureSeed(adminKv, KV_ARTICLES)
+      const shuoshuo = await ensureSeed(adminKv, KV_SHUOSHUO)
       const dayKey = new Date().toISOString().slice(0, 10)
       return json({
         articles: articles.length,
@@ -228,7 +242,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
 
     /* ---- 文章管理 ---- */
     if (route === '/articles' && request.method === 'GET') {
-      const articles = await kvGet<any[]>(adminKv, KV_ARTICLES) || []
+      const articles = await ensureSeed(adminKv, KV_ARTICLES)
       return json({ list: articles })
     }
 
@@ -282,7 +296,7 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
 
     /* ---- 说说管理 ---- */
     if (route === '/shuoshuo' && request.method === 'GET') {
-      const list = await kvGet<any[]>(adminKv, KV_SHUOSHUO) || []
+      const list = await ensureSeed(adminKv, KV_SHUOSHUO)
       return json({ list })
     }
 
@@ -366,11 +380,96 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
         if (idx >= 0) {
           list[idx].status = body.status || 'approved'
           await kv?.put('friend_applications', JSON.stringify(list))
+          // 通过时同步写入后台友链表（后台可管理全部友链）
+          if (list[idx].status === 'approved' && adminKv) {
+            const friendList = await ensureSeed(adminKv, KV_FRIENDS)
+            if (!friendList.some((f: any) => f.url === list[idx].url)) {
+              friendList.unshift({
+                id: list[idx].id,
+                name: list[idx].name,
+                url: list[idx].url,
+                avatar: list[idx].avatar || '',
+                description: list[idx].description || '',
+                tag: '友链申请',
+              })
+              await kvSet(adminKv, KV_FRIENDS, friendList)
+            }
+          }
         }
         return json({ ok: true })
       } catch {
         return json({ error: '操作失败' }, 500)
       }
+    }
+
+    /* ---- 友链列表管理（内置种子 + 申请通过 + 手动新增） ---- */
+    if (route === '/friend-list' && request.method === 'GET') {
+      const list = await ensureSeed(adminKv, KV_FRIENDS)
+      return json({ list })
+    }
+
+    if (route === '/friend-list' && request.method === 'POST') {
+      const body = await readBody(request)
+      const name = String(body.name || '').trim().slice(0, 60)
+      const url = String(body.url || '').trim().slice(0, 200)
+      if (!name || !url) return json({ error: '站点名称和地址不能为空' }, 400)
+      const list = await ensureSeed(adminKv, KV_FRIENDS)
+      if (list.some((f: any) => f.url === url)) return json({ error: '该站点已在友链中' }, 400)
+      const item = {
+        id: `fl${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        name,
+        url,
+        avatar: String(body.avatar || '').trim().slice(0, 300),
+        description: String(body.description || '').trim().slice(0, 200),
+        tag: String(body.tag || '博客').trim().slice(0, 30),
+      }
+      list.unshift(item)
+      await kvSet(adminKv, KV_FRIENDS, list)
+      return json({ ok: true, item })
+    }
+
+    if (route === '/friend-list' && request.method === 'PUT') {
+      const body = await readBody(request)
+      const list = await ensureSeed(adminKv, KV_FRIENDS)
+      const idx = list.findIndex((f: any) => f.id === body.id)
+      if (idx < 0) return json({ error: '友链不存在' }, 404)
+      if (body.name !== undefined) list[idx].name = String(body.name).trim().slice(0, 60) || list[idx].name
+      if (body.url !== undefined) list[idx].url = String(body.url).trim().slice(0, 200)
+      if (body.avatar !== undefined) list[idx].avatar = String(body.avatar).trim().slice(0, 300)
+      if (body.description !== undefined) list[idx].description = String(body.description).trim().slice(0, 200)
+      if (body.tag !== undefined) list[idx].tag = String(body.tag).trim().slice(0, 30)
+      await kvSet(adminKv, KV_FRIENDS, list)
+      return json({ ok: true, item: list[idx] })
+    }
+
+    if (route === '/friend-list' && request.method === 'DELETE') {
+      const body = await readBody(request)
+      const list = await ensureSeed(adminKv, KV_FRIENDS)
+      const filtered = list.filter((f: any) => f.id !== body.id)
+      await kvSet(adminKv, KV_FRIENDS, filtered)
+      return json({ ok: true, removed: list.length - filtered.length })
+    }
+
+    /* ---- 种子合并导入（把内置静态内容补齐到后台存储，幂等） ---- */
+    if (route === '/seed' && request.method === 'POST') {
+      const body = await readBody(request)
+      const type = String(body.type || '')
+      const items = Array.isArray(body.items) ? body.items : []
+      const cfg = SEED_MAP.find(m => m.key === `admin_${type}`)
+      if (!cfg || items.length === 0) return json({ error: '参数不完整' }, 400)
+      const list = await ensureSeed(adminKv, cfg.key)
+      const keyOf = (it: any) => (type === 'friends' ? String(it.url || '') : String(it.id || it.slug || ''))
+      const existing = new Set(list.map(keyOf))
+      let added = 0
+      for (const it of items) {
+        const k = keyOf(it)
+        if (!k || existing.has(k)) continue
+        existing.add(k)
+        list.push(it)
+        added++
+      }
+      await kvSet(adminKv, cfg.key, list)
+      return json({ ok: true, added, total: list.length })
     }
 
     /* ---- Markdown 文件上传（文章）---- */
@@ -471,6 +570,234 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
         uv: stats.visitors?.length || 0,
         days: dayList,
       })
+    }
+
+    /* ---- 画廊管理 ---- */
+    if (route === '/gallery' && request.method === 'GET') {
+      const albums = await ensureSeed(adminKv, KV_GALLERY)
+      return json({ list: albums })
+    }
+
+    if (route === '/gallery' && request.method === 'POST') {
+      const body = await readBody(request)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      const album = {
+        id: `g${Date.now().toString(36)}`,
+        title: body.title || '未命名相册',
+        cover: '',
+        photos: [],
+        updatedAt: new Date().toISOString().slice(0, 10),
+        createdAt: new Date().toISOString(),
+      }
+      albums.unshift(album)
+      await kvSet(adminKv, KV_GALLERY, albums)
+      return json({ ok: true, album })
+    }
+
+    if (route === '/gallery' && request.method === 'PUT') {
+      const body = await readBody(request)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      const idx = albums.findIndex(a => a.id === body.id)
+      if (idx < 0) return json({ error: '相册不存在' }, 404)
+      if (body.title !== undefined) albums[idx].title = body.title
+      if (Array.isArray(body.photos)) albums[idx].photos = body.photos
+      if (body.cover !== undefined) albums[idx].cover = body.cover
+      albums[idx].updatedAt = new Date().toISOString().slice(0, 10)
+      await kvSet(adminKv, KV_GALLERY, albums)
+      return json({ ok: true, album: albums[idx] })
+    }
+
+    if (route === '/gallery' && request.method === 'DELETE') {
+      const body = await readBody(request)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      const album = albums.find(a => a.id === body.id)
+      // 删除相册内所有图片的 KV 数据
+      if (album?.photos?.length) {
+        for (const photo of album.photos) {
+          if (photo.kvKey) {
+            try { await adminKv.delete(photo.kvKey) } catch { /* ignore */ }
+          }
+        }
+      }
+      const filtered = albums.filter(a => a.id !== body.id)
+      await kvSet(adminKv, KV_GALLERY, filtered)
+      return json({ ok: true, removed: albums.length - filtered.length })
+    }
+
+    /* ---- 画廊：批量 URL 添加照片（粘贴一堆图片 URL 即生成相册照片） ---- */
+    if (route === '/gallery/urls' && request.method === 'POST') {
+      const body = await readBody(request)
+      const albumId = String(body.albumId || '')
+      const raw = Array.isArray(body.photos) ? body.photos : []
+      if (!albumId) return json({ error: '缺少相册 ID' }, 400)
+      if (!raw.length) return json({ error: '请至少提供一个图片 URL' }, 400)
+
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      const idx = albums.findIndex(a => a.id === albumId)
+      if (idx < 0) return json({ error: '相册不存在' }, 404)
+      if (!Array.isArray(albums[idx].photos)) albums[idx].photos = []
+
+      const sanitize = (v: unknown): string => {
+        const s = String(v || '').trim().slice(0, 500)
+        if (/^https?:\/\/\S+$/i.test(s)) return s
+        if (/^\/\S+$/i.test(s)) return s
+        return ''
+      }
+
+      let added = 0
+      for (const item of raw) {
+        const itemObj = (item && typeof item === 'object') ? item as Record<string, unknown> : null
+        const url = sanitize(itemObj && itemObj.url !== undefined ? itemObj.url : item)
+        if (!url) continue
+        if (albums[idx].photos.some((p: any) => p.url === url)) continue
+        const orientation = itemObj?.orientation === 'portrait' ? 'portrait' : 'landscape'
+        albums[idx].photos.push({
+          id: `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+          url,
+          caption: itemObj && String(itemObj.caption || '').trim().slice(0, 100),
+          orientation,
+        })
+        added++
+      }
+      if (added === 0) return json({ error: '没有可添加的有效图片 URL（需 http(s):// 或 / 开头的站内路径）' }, 400)
+
+      if (!albums[idx].cover) albums[idx].cover = albums[idx].photos[0].url
+      albums[idx].updatedAt = new Date().toISOString().slice(0, 10)
+      await kvSet(adminKv, KV_GALLERY, albums)
+      return json({ ok: true, added, album: albums[idx] })
+    }
+
+    /* ---- 画廊图片上传 ---- */
+    if (route === '/gallery/upload' && request.method === 'POST') {
+      const formData = await request.formData()
+      const file = formData.get('file') as File | null
+      const albumId = (formData.get('albumId') as string) || ''
+      const caption = (formData.get('caption') as string) || ''
+      if (!file) return json({ error: '请上传图片文件' }, 400)
+      if (!albumId) return json({ error: '缺少相册 ID' }, 400)
+
+      // 限制 5MB
+      if (file.size > 5 * 1024 * 1024) {
+        return json({ error: '图片不能超过 5MB' }, 400)
+      }
+
+      const buf = await file.arrayBuffer()
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+      const photoId = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+      const kvKey = `gallery_img_${photoId}`
+
+      // 存储图片数据到 KV
+      await adminKv.put(kvKey, JSON.stringify({
+        data: base64,
+        type: file.type || 'image/jpeg',
+      }))
+
+      // 更新相册元数据
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      const idx = albums.findIndex(a => a.id === albumId)
+      if (idx < 0) return json({ error: '相册不存在' }, 404)
+
+      const photo = {
+        id: photoId,
+        kvKey,
+        caption,
+        orientation: (formData.get('orientation') as string) === 'portrait' ? 'portrait' : 'landscape',
+        url: `/gallery/image/${photoId}`,
+      }
+      albums[idx].photos = albums[idx].photos || []
+      albums[idx].photos.push(photo)
+      // 第一张图自动设为封面
+      if (!albums[idx].cover) {
+        albums[idx].cover = photo.url
+      }
+      albums[idx].updatedAt = new Date().toISOString().slice(0, 10)
+      await kvSet(adminKv, KV_GALLERY, albums)
+
+      return json({ ok: true, photo })
+    }
+
+    /* ---- 画廊单张照片删除 ---- */
+    if (route === '/gallery/photo' && request.method === 'DELETE') {
+      const body = await readBody(request)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      let removed = false
+      for (const album of albums) {
+        if (!album.photos) continue
+        const before = album.photos.length
+        album.photos = album.photos.filter((p: any) => {
+          if (p.id === body.id) {
+            if (p.kvKey) { try { adminKv.delete(p.kvKey) } catch { /* ignore */ } }
+            removed = true
+            return false
+          }
+          return true
+        })
+        if (removed) {
+          // 更新封面
+          if (album.cover && album.photos.length > 0 && !album.photos.some((p: any) => p.url === album.cover)) {
+            album.cover = album.photos[0].url
+          } else if (album.photos.length === 0) {
+            album.cover = ''
+          }
+          album.updatedAt = new Date().toISOString().slice(0, 10)
+          break
+        }
+      }
+      if (removed) {
+        await kvSet(adminKv, KV_GALLERY, albums)
+        return json({ ok: true, removed: 1 })
+      }
+      return json({ error: '照片不存在' }, 404)
+    }
+
+    /* ---- 画廊照片信息更新（caption / orientation）---- */
+    if (route === '/gallery/photo' && request.method === 'PUT') {
+      const body = await readBody(request)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      for (const album of albums) {
+        if (!album.photos) continue
+        const photo = album.photos.find((p: any) => p.id === body.id)
+        if (photo) {
+          if (body.caption !== undefined) photo.caption = body.caption
+          if (body.orientation !== undefined) photo.orientation = body.orientation
+          album.updatedAt = new Date().toISOString().slice(0, 10)
+          await kvSet(adminKv, KV_GALLERY, albums)
+          return json({ ok: true, photo })
+        }
+      }
+      return json({ error: '照片不存在' }, 404)
+    }
+
+    /* ---- 画廊批量删除照片（跨相册，联动清理 KV 图片、更新封面）---- */
+    if (route === '/gallery/photos' && request.method === 'DELETE') {
+      const body = await readBody(request)
+      const ids = Array.isArray(body.ids) ? body.ids.map(String) : []
+      if (!ids.length) return json({ error: '请选择要删除的照片' }, 400)
+      const idSet = new Set(ids)
+      const albums = await kvGet<any[]>(adminKv, KV_GALLERY) || []
+      let removed = 0
+      for (const album of albums) {
+        if (!album.photos) continue
+        const before = album.photos.length
+        album.photos = album.photos.filter((p: any) => {
+          if (idSet.has(String(p.id))) {
+            if (p.kvKey) { try { adminKv.delete(p.kvKey) } catch { /* ignore */ } }
+            removed++
+            return false
+          }
+          return true
+        })
+        if (album.photos.length !== before) {
+          if (album.cover && album.photos.length > 0 && !album.photos.some((p: any) => p.url === album.cover)) {
+            album.cover = album.photos[0].url
+          } else if (album.photos.length === 0) {
+            album.cover = ''
+          }
+          album.updatedAt = new Date().toISOString().slice(0, 10)
+        }
+      }
+      await kvSet(adminKv, KV_GALLERY, albums)
+      return json({ ok: true, removed })
     }
 
     /* ---- 非 API 路由 - 回退到 SPA（让前端路由处理） ---- */
