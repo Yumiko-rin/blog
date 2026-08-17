@@ -122,17 +122,34 @@ export function AccessStatsWidget() {
   const day = useDailyTick() // 跨日重新拉取，今日访问归零
 
   const load = useCallback(async (count: boolean) => {
-    try {
-      // 记录访问：仅当需要计数时 POST 一次（上报失败不阻断读取）
-      if (count) {
-        try {
-          await fetch('/local-api/stats/visit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          })
-        } catch { /* 上报失败不阻断读取 */ }
+    // 计数优先：POST 在同一函数调用内完成「写入 + 返回」，数字是权威的，不存在 KV 读后写竞态
+    if (count) {
+      try {
+        const pr = await fetch('/local-api/stats/visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (pr.ok) {
+          const pd = await pr.json()
+          if (typeof pd?.total === 'number') {
+            const base = { ...pd, recent: [] as { date: string; pv: number; uv: number }[], source: 'server' as const }
+            setStats(base)
+            // 近 7 日趋势异步补全（非阻塞，不影响主数字，避免读后写竞态）
+            fetch('/local-api/stats', { headers: { 'Content-Type': 'application/json' } })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((d) => {
+                if (d?.recent) setStats({ ...base, recent: d.recent, source: 'server' })
+              })
+              .catch(() => {})
+            return
+          }
+        }
+      } catch {
+        /* POST 失败 → 落到下面的 GET 兜底 */
       }
-      // 统一从 GET 读取完整统计（含 uv / 近 7 日趋势），避免 POST 响应缺字段导致访客数显示为 0
+    }
+    // 非计数 / POST 失败 → 纯 GET 读取完整统计（无写入，自然无竞态）
+    try {
       const r = await fetch('/local-api/stats', { headers: { 'Content-Type': 'application/json' } })
       if (r.ok) {
         const d = await r.json()
