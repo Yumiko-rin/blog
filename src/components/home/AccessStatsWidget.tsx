@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Eye, Users, TrendingUp, CalendarDays, Activity } from 'lucide-react'
 import { useDailyTick, dateKey } from '@/hooks/useDailyTick'
 
@@ -90,31 +90,10 @@ function runDays(iso: string) {
   return Math.max(1, Math.round((b - a) / 86400000) + 1)
 }
 
-/** 数字滚动动画 */
-function useCountUp(target: number, duration = 800) {
-  const [val, setVal] = useState(0)
-  const rafRef = useRef<number>(0)
-  const startRef = useRef(0)
-  useEffect(() => {
-    if (target === 0) { setVal(0); return }
-    cancelAnimationFrame(rafRef.current)
-    startRef.current = performance.now()
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - startRef.current) / duration)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setVal(Math.round(target * eased))
-      if (p < 1) rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [target, duration])
-  return val
-}
-
-/** 单个统计数字组件 */
+/** 单个统计数字组件（直接显示最终值，不做滚动动画，避免首屏闪烁 0） */
 function StatNumber({ value, format = true }: { value: number; format?: boolean }) {
-  const animated = useCountUp(value)
-  return <span className="tabular-nums">{format ? animated.toLocaleString() : String(animated)}</span>
+  const text = format ? value.toLocaleString() : String(value)
+  return <span className="tabular-nums">{text}</span>
 }
 
 export function AccessStatsWidget() {
