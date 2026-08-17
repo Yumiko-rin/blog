@@ -485,7 +485,7 @@ tail = old_ts[idx:]  # 保留所有辅助函数
 array_ts = json.dumps(articles, ensure_ascii=False, indent=2)
 
 header = (
-    "import type { Article }\n"
+    "import type { Article } from '@/types'\n"
     "\n"
     "/**\n"
     " * 文章数据（重写：DeepSeek 使用+插件、Markdown 编写、Obsidian 使用+插件）\n"

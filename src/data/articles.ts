@@ -1,4 +1,4 @@
-import type { Article }
+import type { Article } from '@/types'
 
 /**
  * 文章数据（重写：DeepSeek 使用+插件、Markdown 编写、Obsidian 使用+插件）
