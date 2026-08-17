@@ -61,14 +61,19 @@ if errorlevel 1 (
 )
 echo 推送成功！Cloudflare 正在自动构建部署...
 
-:: ---------- 4. 清空线上 KV 旧键（需本机 wrangler 已登录） ----------
+:: ---------- 4. 清空线上 KV（需本机 wrangler 已登录；直接指定 namespace id 最稳） ----------
 echo.
-echo [4/4] 清空线上 KV 旧键（admin_*）...
+echo [4/4] 清空线上 KV（admin_* 数据键 + _seedhash + articles_version）...
+set "NS=9311c2f035fb464e91de51ff52cee2e6"
 for %%k in (admin_articles admin_shuoshuo admin_friends admin_gallery) do (
   echo 删除 KV 键: %%k
-  npx wrangler kv key delete --binding=COMMENTS_KV "%%k" 2>nul
+  npx wrangler kv key delete --namespace-id=%NS% "%%k" 2>nul
+  echo 删除 KV 键: %%k_seedhash
+  npx wrangler kv key delete --namespace-id=%NS% "%%k_seedhash" 2>nul
 )
-echo KV 清理完成（若 wrangler 未登录会报错，可稍后在 CF 控制台手动删除这 4 个键）。
+echo 删除 KV 键: articles_version
+npx wrangler kv key delete --namespace-id=%NS% "articles_version" 2>nul
+echo KV 清理完成（若 wrangler 未登录会报错，可稍后在 CF 控制台手动删除同名键）。
 
 echo.
 echo ============================================
