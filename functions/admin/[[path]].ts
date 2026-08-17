@@ -124,16 +124,36 @@ const SEED_MAP: { key: string; seed: any[] }[] = [
   { key: KV_GALLERY, seed: SEED_GALLERY_ALBUMS },
 ]
 
+/** 计算种子内容指纹（djb2 哈希），用于判断内置种子是否相对 KV 已变更 */
+function hashSeed(arr: unknown): string {
+  const s = JSON.stringify(arr)
+  let h = 5381
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
+  }
+  return h.toString(36)
+}
+
+/**
+ * 确保 KV 中存在对应数据：
+ * - 首次（KV 空）或内置种子内容已变更 → 用最新种子覆盖写入（保证部署后线上自动更新）
+ * - 种子未变 → 保留 KV 现有数据（含用户在后台的手动改动）
+ */
 async function ensureSeed(kv: KVNamespace | undefined, key: string): Promise<any[]> {
-  const existing = await kvGet<any[]>(kv, key)
-  if (Array.isArray(existing) && existing.length > 0) return existing
-  if (!kv) return existing || []
   const cfg = SEED_MAP.find(m => m.key === key)
-  if (cfg && Array.isArray(cfg.seed) && cfg.seed.length > 0) {
+  const existing = await kvGet<any[]>(kv, key)
+  if (!kv || !cfg || !Array.isArray(cfg.seed) || cfg.seed.length === 0) {
+    return existing || []
+  }
+  const newHash = hashSeed(cfg.seed)
+  const oldHash = await kvGet<string>(kv, key + '_seedhash')
+  if (!Array.isArray(existing) || existing.length === 0 || oldHash !== newHash) {
     await kvSet(kv, key, cfg.seed)
+    await kvSet(kv, key + '_seedhash', newHash)
+    if (key === KV_ARTICLES) await kvSet(kv, KV_ARTICLES_VERSION, Date.now())
     return cfg.seed
   }
-  return existing || []
+  return existing
 }
 
 async function kvGet<T>(kv: KVNamespace | undefined, key: string): Promise<T | null> {
