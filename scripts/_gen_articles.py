@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-生成博客五篇文章，并写入全部 4 个存储位置：
+生成博客四篇文章，并写入全部 4 个存储位置：
   - server-data/admin-articles.json   (本地运行数据，前台实际读取)
   - server/seed/articles.json         (种子，server-data 为空时填充)
   - src/data/articles.ts              (静态兜底 + git 源码，保留底部辅助函数)
@@ -16,147 +16,7 @@ ROOT = r"E:\项目\博客"
 DATE = "2026-08-17"
 
 # ---------------------------------------------------------------------------
-# 文章 1：DeepSeek 使用全攻略
-# ---------------------------------------------------------------------------
-deepseek_content = r"""## 前言
-
-2025 年初，一家叫 DeepSeek（深度求索）的中国 AI 公司横空出世。它的 V3 通用模型和 R1 推理模型，在多项基准上追平甚至超过同级别的国外闭源模型，而 API 价格只有零头。更关键的是——它把模型权重开源了。
-
-这意味着你既可以白嫖它的网页版，也可以用几块钱跑一大堆 API 调用，还能把模型下载到自己机器上离线跑。这篇文章就系统讲清楚：**普通人怎么用 DeepSeek，开发者怎么接 API，以及有哪些好用的第三方工具和插件能把它用出花来。**
-
-![配图](https://picsum.photos/seed/deepseek-ui/1000/500)
-
-## 一、网页端和 App：开箱即用
-
-最简单的方式，不用写一行代码。
-
-- 官网：[chat.deepseek.com](https://chat.deepseek.com)（免费）
-- App：应用商店搜「DeepSeek」
-
-几个核心功能：
-
-1. **深度思考（R1）**：打开这个开关，模型会先自己推理一遍（你能看到思考过程），再给答案。数学、代码、逻辑题一定要开。
-2. **联网搜索**：让模型基于最新网页回答，查资料、问时事很方便。
-3. **文件上传**：支持 PDF、Word、Excel、图片，让它帮你总结、翻译、提取表格。
-4. **对话历史**：登录后云端同步，多端可看。
-
-> 小技巧：问复杂问题时，先让它「列出思考步骤」，再逐步追问，比一次性扔一个大问题效果好得多。
-
-## 二、API 调用：几块钱玩转
-
-DeepSeek 的 API 完全兼容 OpenAI 格式，迁移成本几乎为零。
-
-### 获取密钥
-
-1. 打开 [platform.deepseek.com](https://platform.deepseek.com)，注册充值（新用户有赠送额度）。
-2. 在「API keys」里创建一个 key。
-
-### Python 调用示例
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="你的KEY",
-    base_url="https://api.deepseek.com",
-)
-
-# 用推理模型 R1
-resp = client.chat.completions.create(
-    model="deepseek-reasoner",
-    messages=[
-        {"role": "system", "content": "你是一个严谨的助手。"},
-        {"role": "user", "content": "用 Python 写一个快速排序，并解释时间复杂度。"},
-    ],
-)
-print(resp.choices[0].message.content)
-```
-
-### 模型怎么选
-
-| 模型 | 适用场景 | 特点 |
-|------|----------|------|
-| `deepseek-chat`（V3） | 日常对话、写作、代码补全 | 快、便宜、通用 |
-| `deepseek-reasoner`（R1） | 数学、逻辑推理、复杂代码 | 会先思考，质量高、稍慢 |
-
-> 价格参考：V3 输入约 ¥1/百万 token，R1 稍贵但依然远低于同级闭源模型。具体以官网为准。
-
-### curl 测试
-
-```bash
-curl https://api.deepseek.com/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer 你的KEY" \
-  -d '{
-    "model": "deepseek-chat",
-    "messages": [{"role": "user", "content": "你好"}]
-  }'
-```
-
-## 三、本地部署：数据不出门
-
-如果你在意隐私，或者想跑自己的服务，可以把开源权重拉到本地。
-
-- **Ollama**（最省事）：`ollama run deepseek-r1:7b` 一条命令拉起 7B 蒸馏版。
-- **vLLM / llama.cpp**：适合需要高并发、量化部署的场景。
-- **Docker 一键**：社区有大量封装好的镜像，搜 `deepseek-r1 docker` 即可。
-
-```bash
-# 用 Ollama 跑 7B 版本（需要约 4-5G 显存/内存）
-ollama run deepseek-r1:7b
-```
-
-本地部署的代价是硬件：7B 勉强能跑，32B/70B 需要不错的显卡。普通笔记本建议用云端 API，把重活交给服务器。
-
-## 四、好用的工具与插件推荐
-
-光用官方网页有点浪费。下面按场景推荐一批能显著提升效率的工具。
-
-### 1. 桌面 / 网页客户端
-
-| 工具 | 特点 | 适合谁 |
-|------|------|--------|
-| **Chatbox** | 开源、跨平台、支持多种模型 | 想要一个干净聊天界面的人 |
-| **LobeChat** | 现代 UI、插件系统、支持语音 | 喜欢折腾界面和扩展的人 |
-| **Open WebUI** | 自托管、功能全、可接 Ollama | 本地部署玩家 |
-| **Cherry Studio** | 多模型聚合、知识库 | 重度使用者 |
-
-### 2. 编辑器 / IDE 集成
-
-- **Continue**（VS Code / JetBrains）：把 DeepSeek 接进编辑器，边写边问。
-- **Cline / Roo Code**：Agent 型编程助手，能读文件、跑命令、改代码。
-- **Cursor**：选 DeepSeek 作底层模型，性价比拉满。
-
-### 3. 浏览器插件
-
-- **沉浸式翻译**：用 DeepSeek 做网页/PDF 双语翻译。
-- **各类「侧边栏 AI」插件**：选中文字右键提问，DeepSeek 当后端。
-
-### 4. 自动化与工作流
-
-- **Dify / n8n**：把 DeepSeek 接进工作流，做自动摘要、客服、批处理。
-- **MCP 服务器**：让支持 MCP 的客户端（如 Claude Desktop、Cursor）直接调用 DeepSeek 能力。
-
-![配图](https://picsum.photos/seed/deepseek-tools/1000/500)
-
-### 5. 国内稳定接入
-
-- **硅基流动 / 腾讯云 AI 等国内平台**：提供 DeepSeek 的国内稳定接入点，延迟低、无需翻墙。
-
-## 五、避坑与最佳实践
-
-- **R1 不要和工具调用混用过度**：推理模型的 tool calling 支持有限，复杂 agent 先用 V3 试探。
-- **敏感数据走本地或国内合规节点**，别把公司内部文档直接丢公网 API。
-- **长上下文记得截断**：虽然支持长窗口，但超长对话成本和延迟都会涨。
-- **提示词要具体**：DeepSeek 对清晰指令响应极佳，模糊问题会得到泛泛回答。
-
-## 总结
-
-DeepSeek 把「好用的强模型」和「用得起」这两件事同时做到了。日常用网页版、开发接 API、隐私党本地跑——三种姿势总有一种适合你。再配合上面这些客户端、编辑器插件和自动化工具，它能从「一个聊天框」变成你工作流里真正的主力引擎。
-"""
-
-# ---------------------------------------------------------------------------
-# 文章 2：Markdown 编写完全指南
+# 文章 1：Markdown 编写完全指南
 # ---------------------------------------------------------------------------
 markdown_content = r"""## 前言
 
@@ -293,7 +153,7 @@ Markdown 的精髓是「专注内容，格式交给符号」。把基础语法�
 """
 
 # ---------------------------------------------------------------------------
-# 文章 3：Obsidian 使用全攻略
+# 文章 2：Obsidian 使用全攻略
 # ---------------------------------------------------------------------------
 obsidian_content = r"""## 前言
 
@@ -405,7 +265,7 @@ Obsidian 的魅力在于「你的数据永远属于你」，又能通过双链�
 """
 
 # ---------------------------------------------------------------------------
-# 文章 4：Cloudflare 完全指南
+# 文章 3：Cloudflare 完全指南
 # ---------------------------------------------------------------------------
 cloudflare_content = r"""## 前言
 
@@ -548,7 +408,7 @@ Cloudflare 的价值不在于某一个产品，而在于「网络 + 计算 + 存
 """
 
 # ---------------------------------------------------------------------------
-# 文章 5：DeepSeek Harness (dsh) 使用全攻略
+# 文章 4：DeepSeek Harness (dsh) 使用全攻略
 # ---------------------------------------------------------------------------
 dsh_content = r"""## 前言
 
@@ -701,14 +561,14 @@ DeepSeek Harness 把「让模型真正干活」的那一层彻底开源了。它
 # ---------------------------------------------------------------------------
 articles = [
     {
-        "id": "deepseek-usage-plugins",
-        "slug": "deepseek-usage-plugins",
-        "title": "DeepSeek 使用全攻略：从网页到 API，附 10+ 好用工具与插件推荐",
-        "excerpt": "系统讲清 DeepSeek 的三种用法：网页/App 开箱即用、OpenAI 兼容 API 几块钱调用、本地开源权重部署；并附桌面客户端、IDE 插件、浏览器扩展、自动化工作流等好用工具推荐。",
-        "content": deepseek_content,
-        "cover": "https://picsum.photos/seed/deepseek-cover/1200/600",
+        "id": "deepseek-harness-guide",
+        "slug": "deepseek-harness-guide",
+        "title": "DeepSeek Harness (dsh) 使用全攻略：一切皆插件的开源 Agent 框架",
+        "excerpt": "DeepSeek 于 2026-08-13 开源的 Agent 运行框架 dsh：安装启动、配置 API Key、选择工作区、四种运行模式、插件系统与 headless/SDK 用法，附实战示例与避坑。",
+        "content": dsh_content,
+        "cover": "https://picsum.photos/seed/deepseek-harness-cover/1200/600",
         "category": "软件",
-        "tags": ["DeepSeek", "AI", "大模型", "API", "工具推荐", "插件"],
+        "tags": ["DeepSeek", "Agent", "dsh", "Harness", "开源", "AI", "自动化"],
         "date": DATE,
         "views": 0,
         "likes": 0,
@@ -756,20 +616,6 @@ articles = [
         "likes": 0,
         "isPinned": False,
     },
-    {
-        "id": "deepseek-harness-guide",
-        "slug": "deepseek-harness-guide",
-        "title": "DeepSeek Harness (dsh) 使用全攻略：一切皆插件的开源 Agent 框架",
-        "excerpt": "DeepSeek 于 2026-08-13 开源的 Agent 运行框架 dsh：安装启动、配置 API Key、选择工作区、四种运行模式、插件系统与 headless/SDK 用法，附实战示例与避坑。",
-        "content": dsh_content,
-        "cover": "https://picsum.photos/seed/deepseek-harness-cover/1200/600",
-        "category": "软件",
-        "tags": ["DeepSeek", "Agent", "dsh", "Harness", "开源", "AI", "自动化"],
-        "date": DATE,
-        "views": 0,
-        "likes": 0,
-        "isPinned": False,
-    },
 ]
 
 # 计算字数与阅读时长
@@ -808,7 +654,7 @@ header = (
     "import type { Article } from '@/types'\n"
     "\n"
     "/**\n"
-    " * 文章数据（DeepSeek 使用+插件、Markdown 编写、Obsidian 使用+插件、Cloudflare 指南、DeepSeek Harness 指南）\n"
+    " * 文章数据（Markdown 编写、Obsidian 使用+插件、Cloudflare 指南、DeepSeek Harness 指南）\n"
     " * 首页列表与详情页共用此数据源\n"
     " * id 使用 slug，保证 /article/:id 路由对齐\n"
     " */\n"
