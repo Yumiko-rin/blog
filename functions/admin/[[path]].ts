@@ -9,10 +9,10 @@
  */
 
 // 内置种子（由 scripts/export-seeds.cjs 生成，勿手改）
-import { SEED_ARTICLES } from '../seed/articles'
-import { SEED_SHUOSHUO } from '../seed/shuoshuo'
-import { SEED_FRIENDS } from '../seed/friends'
-import { SEED_GALLERY_ALBUMS } from '../seed/gallery'
+import { SEED_ARTICLES } from '../../src/seed/articles'
+import { SEED_SHUOSHUO } from '../../src/seed/shuoshuo'
+import { SEED_FRIENDS } from '../../src/seed/friends'
+import { SEED_GALLERY_ALBUMS } from '../../src/seed/gallery'
 
 interface Env {
   COMMENTS_KV?: KVNamespace

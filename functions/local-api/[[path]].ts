@@ -15,7 +15,7 @@
  */
 
 // 内置种子：KV 为空时自动导入内置静态内容（画廊相册等）
-import { SEED_GALLERY_ALBUMS } from '../seed/gallery'
+import { SEED_GALLERY_ALBUMS } from '../../src/seed/gallery'
 
 interface CommentRow {
   id: string
