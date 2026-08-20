@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { path: '/archive', label: '文章' },
   { path: '/shuoshuo', label: '说说' },
   { path: '/moments', label: '留言板' },
+  { path: '/friends', label: '友链' },
   { path: '/gallery', label: '画廊' },
   { path: '/music', label: '音乐' },
   { path: '/my', label: '我的' },
