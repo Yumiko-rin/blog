@@ -364,8 +364,17 @@ export const onRequest: PagesFunction<AdminEnv> = async (context) => {
     /* ---- 评论管理（复用 COMMENTS_KV）---- */
     if (route === '/comments' && request.method === 'GET') {
       const comments = await loadComments(kv)
-      const sorted = comments.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
-      return json({ list: sorted, total: comments.length })
+      const sorted = [...comments].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+      // 字段归一化：存储用 nick/createdAt，管理端展示用 name/date（兼容旧数据）
+      const list = sorted.map((c: any) => ({
+        id: c.id || '',
+        name: c.nick || c.name || '匿名',
+        content: c.content || '',
+        path: c.path || c.url || '',
+        date: c.createdAt || c.date || '',
+        avatar: c.avatar || '',
+      }))
+      return json({ list, total: comments.length })
     }
 
     if (route === '/comments' && request.method === 'DELETE') {

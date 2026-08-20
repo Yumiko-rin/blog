@@ -16,6 +16,16 @@ interface CommentItem {
   avatar?: string
 }
 
+/** 评论来源筛选 */
+type SourceFilter = 'all' | 'guestbook' | 'article' | 'shuoshuo'
+
+const SOURCE_FILTERS: { key: SourceFilter; label: string; match: (c: CommentItem) => boolean }[] = [
+  { key: 'all', label: '全部', match: () => true },
+  { key: 'guestbook', label: '留言板', match: (c) => (c.path || c.url || '') === '/guestbook' },
+  { key: 'article', label: '文章', match: (c) => (c.path || c.url || '').startsWith('/article/') },
+  { key: 'shuoshuo', label: '说说', match: (c) => (c.path || c.url || '').startsWith('/shuoshuo/') },
+]
+
 export default function CommentManage() {
   const [comments, setComments] = useState<CommentItem[]>([])
   const [total, setTotal] = useState(0)
@@ -24,6 +34,7 @@ export default function CommentManage() {
   const [error, setError] = useState('')
   const { toast, showToast } = useToast()
   const [keyword, setKeyword] = useState('')
+  const [source, setSource] = useState<SourceFilter>('all')
 
   /** 加载评论列表 */
   const load = async () => {
@@ -58,17 +69,31 @@ export default function CommentManage() {
     }
   }
 
-  /** 搜索过滤 */
+  /** 各来源评论数 */
+  const counts = useMemo(() => {
+    const c: Record<SourceFilter, number> = { all: comments.length, guestbook: 0, article: 0, shuoshuo: 0 }
+    for (const it of comments) {
+      const p = it.path || it.url || ''
+      if (p === '/guestbook') c.guestbook++
+      else if (p.startsWith('/article/')) c.article++
+      else if (p.startsWith('/shuoshuo/')) c.shuoshuo++
+    }
+    return c
+  }, [comments])
+
+  /** 过滤：来源 + 关键词 */
   const filtered = useMemo(() => {
-    if (!keyword.trim()) return comments
+    const rule = SOURCE_FILTERS.find((f) => f.key === source)
+    const base = source === 'all' || !rule ? comments : comments.filter(rule.match)
+    if (!keyword.trim()) return base
     const kw = keyword.toLowerCase().trim()
-    return comments.filter(
+    return base.filter(
       (c) =>
         c.name?.toLowerCase().includes(kw) ||
         c.content?.toLowerCase().includes(kw) ||
         (c.path || c.url || '')?.toLowerCase().includes(kw)
     )
-  }, [comments, keyword])
+  }, [comments, keyword, source])
 
   /** 截断预览 */
   const preview = (text: string, max = 120) => {
@@ -96,6 +121,31 @@ export default function CommentManage() {
           placeholder="搜索昵称、内容或路径..."
           className="w-full rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl py-3 pl-12 pr-4 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30"
         />
+      </div>
+
+      {/* 来源筛选 */}
+      <div className="flex flex-wrap items-center gap-2">
+        {SOURCE_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setSource(f.key)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border transition-colors ${
+              source === f.key
+                ? 'bg-accent text-white border-accent'
+                : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            {f.label}
+            <span
+              className={`text-[10px] tabular-nums ${
+                source === f.key ? 'text-white/80' : 'text-white/30'
+              }`}
+            >
+              {counts[f.key]}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* 错误提示 */}
@@ -126,10 +176,14 @@ export default function CommentManage() {
         <div className="flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-2xl p-16 text-center">
           <MessageSquare className="h-14 w-14 text-white/20" />
           <p className="mt-4 text-lg font-medium text-white/60">
-            {keyword ? '未找到匹配的评论' : '暂无评论'}
+            {keyword || source !== 'all' ? '未找到匹配的评论' : '暂无评论'}
           </p>
           <p className="mt-1 text-sm text-white/40">
-            {keyword ? '尝试更换关键词' : '访客评论后将显示在这里'}
+            {keyword
+              ? '尝试更换关键词'
+              : source !== 'all'
+                ? '该来源暂无评论'
+                : '访客评论后将显示在这里'}
           </p>
         </div>
       )}
